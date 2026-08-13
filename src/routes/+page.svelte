@@ -43,7 +43,7 @@
     <nav class="mobile-nav" aria-label="Mobilmeny"><Home size={24}/><Search size={24}/><button onclick={() => composerOpen = true} aria-label="Opprett"><PlusSquare size={24}/></button><Video size={24}/><UserRound size={24}/></nav>
   </main>
 
-  <aside class="right-rail"><div class="account-row"><div class="profile-avatar"><UserRound size={22}/></div><div><strong>{data.user?.realName ?? 'Din profil'}</strong><span>{data.user ? `@${data.user.username}` : 'Ikke logget inn'}</span></div>{#if !data.user}<a href="/login">Logg inn</a>{/if}</div><div class="safe-note"><ShieldCheck size={20}/><p><strong>Ekte mennesker.</strong><br/>Verifiserte kontoer og trygghet som standard.</p></div><div class="rail-links"><a href="/">Om</a><a href="/">Hjelp</a><a href="/">Personvern</a><a href="/">Vilkår</a></div><small>© 2026 SAMVIO</small></aside>
+  <aside class="right-rail"><div class="account-row"><div class="profile-avatar"><UserRound size={22}/></div><div><strong>{data.user?.realName ?? 'Din profil'}</strong><span>{data.user ? `@${data.user.username}` : 'Ikke logget inn'}</span></div>{#if !data.user}<a href="/login">Logg inn</a>{/if}</div><div class="safe-note"><ShieldCheck size={20}/><p><strong>Ekte mennesker.</strong><br/>Verifiserte kontoer og trygghet som standard.</p></div><div class="rail-links"><a href="/priser">Priser</a><a href="/">Om</a><a href="/">Hjelp</a><a href="/">Personvern</a><a href="/">Vilkår</a></div><small>© 2026 SAMVIO</small></aside>
 </div>
 
 {#if composerOpen}

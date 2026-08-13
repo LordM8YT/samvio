@@ -55,3 +55,42 @@ export const postMedia = mysqlTable('post_media', {
   width: int('width'), height: int('height'), sortOrder: int('sort_order').notNull().default(0),
   metadata: json('metadata')
 }, (t) => [index('idx_post_media_post').on(t.postId, t.sortOrder)]);
+
+export const organizations = mysqlTable('organizations', {
+  id: char('id', { length: 36 }).primaryKey(), name: varchar('name', { length: 160 }).notNull(),
+  slug: varchar('slug', { length: 60 }).notNull(),
+  type: mysqlEnum('type', ['team', 'association', 'organization']).notNull(),
+  createdBy: char('created_by', { length: 36 }).notNull().references(() => users.id), ...timestamps
+}, (t) => [uniqueIndex('uq_organizations_slug').on(t.slug)]);
+
+export const organizationMembers = mysqlTable('organization_members', {
+  organizationId: char('organization_id', { length: 36 }).notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  userId: char('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: mysqlEnum('role', ['owner', 'admin', 'moderator', 'member']).notNull().default('member'),
+  status: mysqlEnum('status', ['invited', 'active', 'removed']).notNull().default('invited'),
+  createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow()
+}, (t) => [primaryKey({ columns: [t.organizationId, t.userId] }), index('idx_org_members_user').on(t.userId, t.status)]);
+
+export const subscriptions = mysqlTable('subscriptions', {
+  id: char('id', { length: 36 }).primaryKey(),
+  userId: char('user_id', { length: 36 }).references(() => users.id, { onDelete: 'cascade' }),
+  organizationId: char('organization_id', { length: 36 }).references(() => organizations.id, { onDelete: 'cascade' }),
+  planCode: mysqlEnum('plan_code', ['person', 'family', 'team', 'association', 'organization']).notNull(),
+  status: mysqlEnum('status', ['trialing', 'active', 'past_due', 'canceled', 'expired']).notNull().default('trialing'),
+  priceOre: int('price_ore').notNull(), currency: char('currency', { length: 3 }).notNull().default('NOK'),
+  provider: varchar('provider', { length: 30 }).notNull().default('vipps'), providerCustomerId: varchar('provider_customer_id', { length: 255 }),
+  providerSubscriptionId: varchar('provider_subscription_id', { length: 255 }),
+  currentPeriodStart: timestamp('current_period_start', { mode: 'date' }), currentPeriodEnd: timestamp('current_period_end', { mode: 'date' }),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false), ...timestamps
+}, (t) => [uniqueIndex('uq_subscriptions_provider_id').on(t.provider, t.providerSubscriptionId), index('idx_subscriptions_user').on(t.userId, t.status), index('idx_subscriptions_org').on(t.organizationId, t.status)]);
+
+export const paymentEvents = mysqlTable('payment_events', {
+  id: char('id', { length: 36 }).primaryKey(),
+  subscriptionId: char('subscription_id', { length: 36 }).notNull().references(() => subscriptions.id, { onDelete: 'cascade' }),
+  provider: varchar('provider', { length: 30 }).notNull().default('vipps'),
+  providerEventId: varchar('provider_event_id', { length: 255 }).notNull(),
+  eventType: varchar('event_type', { length: 80 }).notNull(),
+  payload: json('payload').notNull(),
+  processedAt: timestamp('processed_at', { mode: 'date' }),
+  createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow()
+}, (t) => [uniqueIndex('uq_payment_events_provider').on(t.provider, t.providerEventId), index('idx_payment_events_subscription').on(t.subscriptionId, t.createdAt)]);
