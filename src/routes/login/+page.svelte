@@ -1,0 +1,31 @@
+<script lang="ts">
+  import { ArrowLeft, ShieldCheck } from '@lucide/svelte';
+  let { form } = $props();
+  let mode = $state<'login' | 'register'>('login');
+</script>
+<svelte:head><title>{mode === 'login' ? 'Logg inn' : 'Opprett konto'} – Samvio</title></svelte:head>
+<main class="auth-page">
+  <a class="back" href="/"><ArrowLeft size={19}/> Tilbake</a>
+  <section class="auth-card">
+    <a class="auth-logo" href="/">Samvio</a>
+    <h1>{mode === 'login' ? 'Velkommen tilbake' : 'Opprett din profil'}</h1>
+    <p>{mode === 'login' ? 'Logg inn på den lokale utviklingskontoen din.' : 'Denne lokale innloggingen erstattes av BankID før lansering.'}</p>
+    <div class="tabs"><button class:active={mode === 'login'} onclick={() => mode = 'login'}>Logg inn</button><button class:active={mode === 'register'} onclick={() => mode = 'register'}>Ny konto</button></div>
+    {#if form?.message}<div class="form-error" role="alert">{form.message}</div>{/if}
+    <form method="POST" action={mode === 'login' ? '?/login' : '?/register'}>
+      {#if mode === 'register'}
+        <label>Fullt navn<input name="realName" autocomplete="name" required minlength="2" maxlength="120"/></label>
+        <label>Brukernavn<input name="username" autocomplete="username" required pattern="[a-z0-9_]+" minlength="3" maxlength="30" placeholder="kun små bokstaver"/></label>
+        <label>Fødselsdato<input name="birthDate" type="date" autocomplete="bday" required/></label>
+      {/if}
+      <label>E-post<input name="email" type="email" autocomplete="email" required/></label>
+      <label>Passord<input name="password" type="password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength="8"/></label>
+      <button class="submit">{mode === 'login' ? 'Logg inn' : 'Opprett konto'}</button>
+    </form>
+    <div class="dev-notice"><span class="notice-icon"><ShieldCheck size={18}/></span><span><strong>Kun for lokal utvikling</strong> BankID-verifisering kobles inn før offentlig testing.</span></div>
+  </section>
+</main>
+
+<style>
+  .auth-page{min-height:100vh;display:grid;place-items:center;padding:60px 20px;background:#fafafa}.back{position:fixed;left:28px;top:25px;display:flex;align-items:center;gap:7px;font-size:13px}.auth-card{width:min(430px,100%);padding:40px;background:#fff;border:1px solid #dbdbdb;border-radius:10px}.auth-logo{display:block;margin-bottom:27px;text-align:center;font:600 34px 'Newsreader',serif}.auth-card h1{margin:0;text-align:center;font-size:23px}.auth-card>p{margin:8px auto 25px;color:#737373;text-align:center;font-size:13px;line-height:1.5}.tabs{display:grid;grid-template-columns:1fr 1fr;margin-bottom:22px;border-bottom:1px solid #ddd}.tabs button{padding:11px;border:0;border-bottom:2px solid transparent;background:transparent;color:#777}.tabs button.active{border-color:#315d49;color:#171717;font-weight:700}form{display:grid;gap:14px}label{display:grid;gap:6px;font-size:12px;font-weight:600}input{width:100%;height:43px;padding:0 12px;border:1px solid #d6d6d6;border-radius:7px;background:#fafafa;font:14px 'DM Sans',sans-serif}input:focus{outline:2px solid #315d4933;border-color:#315d49}.submit{height:44px;margin-top:5px;border:0;border-radius:8px;background:#315d49;color:#fff;font-weight:700}.form-error{margin-bottom:15px;padding:10px;border-radius:7px;background:#fff0ed;color:#9b3c2d;font-size:12px}.dev-notice{display:flex;gap:9px;margin-top:24px;padding-top:19px;border-top:1px solid #eee;color:#727a75;font-size:10px;line-height:1.5}.notice-icon{flex:none;color:#315d49}.dev-notice strong{display:block;color:#315d49}
+</style>

@@ -1,0 +1,40 @@
+import { compare, hash } from 'bcryptjs';
+import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
+import { fail, isRedirect, redirect } from '@sveltejs/kit';
+import { z } from 'zod';
+import { createSession, sessionCookieOptions, SESSION_COOKIE } from '$lib/server/auth';
+import { db } from '$lib/server/db';
+import { profiles, users } from '$lib/server/db/schema';
+import type { Actions, PageServerLoad } from './$types';
+
+const loginSchema = z.object({ email: z.string().email().transform((v) => v.toLowerCase()), password: z.string().min(8).max(128) });
+const registerSchema = loginSchema.extend({ realName: z.string().trim().min(2).max(120), username: z.string().trim().regex(/^[a-z0-9_]{3,30}$/), birthDate: z.coerce.date().max(new Date()) });
+
+export const load: PageServerLoad = ({ locals }) => { if (locals.user) redirect(303, '/'); };
+
+export const actions: Actions = {
+  login: async ({ request, cookies }) => {
+    const parsed = loginSchema.safeParse(Object.fromEntries(await request.formData()));
+    if (!parsed.success) return fail(400, { mode: 'login', message: 'Kontroller e-post og passord.' });
+    try {
+      const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
+      if (!user?.passwordHash || !(await compare(parsed.data.password, user.passwordHash))) return fail(400, { mode: 'login', message: 'Feil e-post eller passord.' });
+      const token = await createSession(user.id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, '/');
+    } catch (error) { if (isRedirect(error)) throw error; return fail(503, { mode: 'login', message: 'Databasen er ikke tilgjengelig akkurat nå.' }); }
+  },
+  register: async ({ request, cookies }) => {
+    const parsed = registerSchema.safeParse(Object.fromEntries(await request.formData()));
+    if (!parsed.success) return fail(400, { mode: 'register', message: 'Kontroller alle feltene. Brukernavn må være små bokstaver.' });
+    const age = Math.floor((Date.now() - parsed.data.birthDate.getTime()) / 31557600000);
+    const ageBand = age < 13 ? 'child' : age < 18 ? 'teen' : 'adult';
+    const id = randomUUID();
+    try {
+      await db.transaction(async (tx) => {
+        await tx.insert(users).values({ id, email: parsed.data.email, passwordHash: await hash(parsed.data.password, 12), accountStatus: 'active' });
+        await tx.insert(profiles).values({ userId: id, realName: parsed.data.realName, username: parsed.data.username, ageBand });
+      });
+      const token = await createSession(id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, '/');
+    } catch (error) { if (isRedirect(error)) throw error; return fail(409, { mode: 'register', message: 'E-post eller brukernavn er allerede i bruk, eller databasen mangler.' }); }
+  }
+};
