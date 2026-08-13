@@ -2,12 +2,12 @@
   import { Bell, Compass, Heart, Home, Menu, MessageCircle, PlusSquare, Search, ShieldCheck, UserRound, Video, X } from '@lucide/svelte';
   let { data, form } = $props();
   let composerOpen = $state(false);
-  $effect(() => { if (form?.postError) composerOpen = true; });
+  $effect(() => { if (form?.postError || data.openComposer) composerOpen = true; });
   const navigation = [
-    { label: 'Hjem', icon: Home, active: true }, { label: 'Søk', icon: Search },
-    { label: 'Utforsk', icon: Compass }, { label: 'Videoer', icon: Video },
-    { label: 'Meldinger', icon: MessageCircle }, { label: 'Varsler', icon: Bell },
-    { label: 'Opprett', icon: PlusSquare, action: true }, { label: 'Profil', icon: UserRound }
+    { label: 'Hjem', icon: Home, active: true, href: '/' }, { label: 'Søk', icon: Search, href: '/sok' },
+    { label: 'Utforsk', icon: Compass, href: '/utforsk' }, { label: 'Videoer', icon: Video, href: '/videoer' },
+    { label: 'Meldinger', icon: MessageCircle, href: '/meldinger' }, { label: 'Varsler', icon: Bell, href: '/varsler' },
+    { label: 'Opprett', icon: PlusSquare, action: true }, { label: 'Profil', icon: UserRound, href: '/profil' }
   ];
 </script>
 
@@ -16,7 +16,7 @@
 <div class="instagram-layout">
   <aside class="main-nav">
     <a class="wordmark" href="/" aria-label="Samvio hjem"><span class="camera-mark"></span><span>Samvio</span></a>
-    <nav aria-label="Hovedmeny">{#each navigation as item}<button class:active={item.active} onclick={() => item.action && (composerOpen = true)}><item.icon size={25} strokeWidth={item.active ? 2.5 : 1.8}/><span>{item.label}</span></button>{/each}</nav>
+    <nav aria-label="Hovedmeny">{#each navigation as item}{#if item.action}<button aria-label={item.label} onclick={() => composerOpen = true}><item.icon size={25}/><span>{item.label}</span></button>{:else}<a aria-label={item.label} class:active={item.active} href={item.href}><item.icon size={25} strokeWidth={item.active ? 2.5 : 1.8}/><span>{item.label}</span></a>{/if}{/each}</nav>
     <button class="more"><Menu size={25}/><span>Mer</span></button>
   </aside>
 
@@ -40,7 +40,7 @@
       <section class="empty-state"><div class="empty-icon"><PlusSquare size={32}/></div><h2>Del ditt første øyeblikk</h2><p>Når du og menneskene du følger deler bilder eller videoer, vises de her — uten anbefalinger og uten endeløs scrolling.</p><button class="text-action" onclick={() => composerOpen = true}>Del bilde eller video</button></section>
     {/if}
     <div class="feed-end"><ShieldCheck size={17}/><span>Du er helt ajour</span></div>
-    <nav class="mobile-nav" aria-label="Mobilmeny"><Home size={24}/><Search size={24}/><button onclick={() => composerOpen = true} aria-label="Opprett"><PlusSquare size={24}/></button><Video size={24}/><UserRound size={24}/></nav>
+    <nav class="mobile-nav" aria-label="Mobilmeny"><a href="/" aria-label="Hjem"><Home size={24}/></a><a href="/sok" aria-label="Søk"><Search size={24}/></a><button onclick={() => composerOpen = true} aria-label="Opprett"><PlusSquare size={24}/></button><a href="/videoer" aria-label="Videoer"><Video size={24}/></a><a href="/profil" aria-label="Profil"><UserRound size={24}/></a></nav>
   </main>
 
   <aside class="right-rail"><div class="account-row"><div class="profile-avatar"><UserRound size={22}/></div><div><strong>{data.user?.realName ?? 'Din profil'}</strong><span>{data.user ? `@${data.user.username}` : 'Ikke logget inn'}</span></div>{#if !data.user}<a href="/login">Logg inn</a>{/if}</div><div class="safe-note"><ShieldCheck size={20}/><p><strong>Ekte mennesker.</strong><br/>Verifiserte kontoer og trygghet som standard.</p></div><div class="rail-links"><a href="/priser">Priser</a><a href="/">Om</a><a href="/">Hjelp</a><a href="/">Personvern</a><a href="/">Vilkår</a></div><small>© 2026 SAMVIO</small></aside>

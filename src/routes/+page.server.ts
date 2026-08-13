@@ -10,8 +10,9 @@ import type { Actions, PageServerLoad } from './$types';
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const allowedTypes = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']]);
 
-export const load: PageServerLoad = async ({ locals }) => {
-  if (!locals.user) return { user: null, posts: [] };
+export const load: PageServerLoad = async ({ locals, url }) => {
+  const openComposer = url.searchParams.get('opprett') === '1';
+  if (!locals.user) return { user: null, posts: [], openComposer };
 
   try {
     const followedUsers = db.select({ id: follows.followedId }).from(follows)
@@ -28,9 +29,9 @@ export const load: PageServerLoad = async ({ locals }) => {
       .leftJoin(postMedia, eq(postMedia.postId, posts.id))
       .where(or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers)))
       .orderBy(desc(posts.createdAt), desc(posts.id)).limit(30);
-    return { user: locals.user, posts: rows };
+    return { user: locals.user, posts: rows, openComposer };
   } catch {
-    return { user: locals.user, posts: [] };
+    return { user: locals.user, posts: [], openComposer };
   }
 };
 
