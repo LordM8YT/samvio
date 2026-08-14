@@ -1,6 +1,36 @@
 <script lang="ts">
+  import { enhance } from '$app/forms';
+  import type { SubmitFunction } from '@sveltejs/kit';
   import { Search, ShieldCheck, UserRound } from '@lucide/svelte';
+  import { compressImage } from '$lib/client/compress-image';
   let { data, form } = $props();
+  let preparedAvatar: File | null = $state(null);
+  let preparedCover: File | null = $state(null);
+  let preparingImages = $state(0);
+  let profileUploadError = $state('');
+  let savingProfile = $state(false);
+  async function prepareProfileImage(event: Event, kind: 'avatar' | 'cover') {
+    const file = (event.currentTarget as HTMLInputElement).files?.[0];
+    if (kind === 'avatar') preparedAvatar = null; else preparedCover = null;
+    if (!file) return;
+    preparingImages += 1;
+    profileUploadError = '';
+    try {
+      const prepared = await compressImage(file, kind === 'avatar' ? 1200 : 2200, kind === 'avatar' ? 1_200_000 : 2_500_000);
+      if (kind === 'avatar') preparedAvatar = prepared; else preparedCover = prepared;
+    } catch (error) {
+      profileUploadError = error instanceof Error ? error.message : 'Bildet kunne ikke klargjøres.';
+    } finally {
+      preparingImages -= 1;
+    }
+  }
+  const submitProfile: SubmitFunction = ({ formData, cancel }) => {
+    if (preparingImages || profileUploadError) { cancel(); return; }
+    if (preparedAvatar) formData.set('avatar', preparedAvatar); else formData.delete('avatar');
+    if (preparedCover) formData.set('cover', preparedCover); else formData.delete('cover');
+    savingProfile = true;
+    return async ({ update }) => { await update(); savingProfile = false; };
+  };
   const copy: Record<string, { title: string; intro: string; emptyTitle: string; emptyText: string }> = {
     utforsk: { title: 'Utforsk', intro: 'Finn fellesskap du selv velger å følge.', emptyTitle: 'Fellesskap kommer her', emptyText: 'Vi bygger temabaserte rom uten anbefalingsalgoritmer.' },
     videoer: { title: 'Videoer', intro: 'Videoer fra menneskene og fellesskapene du følger.', emptyTitle: 'Ingen videoer ennå', emptyText: 'Dette er vanlige videoinnlegg — ikke direktesending.' },
@@ -37,7 +67,7 @@
       <h1>Innstillinger</h1><p class="section-intro">Administrer profil, konto og medlemskap.</p>
       {#if user}
         <nav class="settings-nav" aria-label="Innstillingskategorier"><a href="#profil">Profil</a><a href="#konto">Konto</a><a href="#personvern">Personvern</a></nav>
-        <section id="profil" class="section-card account-settings"><h2>Profil</h2><p class="settings-help">Dette vises på profilsiden din.</p><form method="POST" action="?/updateProfile" enctype="multipart/form-data"><div class="image-fields"><label>Profilbilde<span>{data.profileImages.avatar ? 'Bytt bilde' : 'Velg bilde'}</span><input name="avatar" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"/></label><label>Forsidebilde<span>{data.profileImages.cover ? 'Bytt bilde' : 'Velg bilde'}</span><input name="cover" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"/></label></div><label class="bio-label">Om deg<textarea name="bio" maxlength="300" rows="4" placeholder="Fortell kort hvem du er …">{data.profileBio ?? ''}</textarea></label><button>Lagre profil</button></form>{#if form?.profileError}<p class="form-error">{form.profileError}</p>{:else if form?.profileSaved}<p class="form-success">Profilen er lagret.</p>{/if}<a class="view-profile" href={`/bruker/${user.username}`}>Se profilen din</a></section>
+        <section id="profil" class="section-card account-settings"><h2>Profil</h2><p class="settings-help">Dette vises på profilsiden din.</p><form method="POST" action="?/updateProfile" enctype="multipart/form-data" use:enhance={submitProfile}><div class="image-fields"><label>Profilbilde<span>{preparedAvatar ? `Klargjort · ${(preparedAvatar.size / 1024 / 1024).toFixed(1)} MB` : data.profileImages.avatar ? 'Bytt bilde' : 'Velg bilde'}</span><input name="avatar" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={(event) => prepareProfileImage(event, 'avatar')}/></label><label>Forsidebilde<span>{preparedCover ? `Klargjort · ${(preparedCover.size / 1024 / 1024).toFixed(1)} MB` : data.profileImages.cover ? 'Bytt bilde' : 'Velg bilde'}</span><input name="cover" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={(event) => prepareProfileImage(event, 'cover')}/></label></div><label class="bio-label">Om deg<textarea name="bio" maxlength="300" rows="4" placeholder="Fortell kort hvem du er …">{data.profileBio ?? ''}</textarea></label>{#if profileUploadError}<p class="form-error" role="alert">{profileUploadError}</p>{/if}<button disabled={!!preparingImages || savingProfile || !!profileUploadError}>{preparingImages ? 'Klargjør bilde …' : savingProfile ? 'Laster opp …' : 'Lagre profil'}</button></form>{#if form?.profileError}<p class="form-error">{form.profileError}</p>{:else if form?.profileSaved}<p class="form-success">Profilen er lagret.</p>{/if}<a class="view-profile" href={`/bruker/${user.username}`}>Se profilen din</a></section>
         <section id="konto" class="section-card"><h2>Konto og medlemskap</h2><div class="profile-details"><p><strong>{user.realName}</strong><br/><span>@{user.username}</span></p><p>{user.email}</p><p><ShieldCheck size={16}/> Alpha-konto med e-post</p></div><div class="profile-actions"><a href="/minner">Minner på denne dagen</a><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
         <section id="personvern" class="section-card"><h2>Personvern og trygghet</h2><p class="settings-help">Innlegg deles bare med aksepterte følgere. Flere valg for synlighet, varsler og blokkering kommer før beta.</p></section>
         <details class="section-card danger-zone"><summary>Slett konto og innhold</summary><p>Dette sletter kontoen, følgerelasjoner, innlegg og opplastede bilder permanent.</p><form method="POST" action="?/deleteAccount"><label>Skriv SLETT for å bekrefte<input name="confirmation" autocomplete="off" required/></label><button>Slett kontoen permanent</button></form>{#if form?.deleteError}<p class="form-error">{form.deleteError}</p>{/if}</details>

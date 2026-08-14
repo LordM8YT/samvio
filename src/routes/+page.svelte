@@ -1,21 +1,41 @@
 <script lang="ts">
+  import { enhance } from '$app/forms';
+  import type { SubmitFunction } from '@sveltejs/kit';
   import { PlusSquare, ShieldCheck, UserRound, X } from '@lucide/svelte';
   import PostCard from '$lib/components/PostCard.svelte';
+  import { compressImage } from '$lib/client/compress-image';
   let { data, form } = $props();
   let composerOpen = $state(false);
   let feedMarked = $state(false);
   let uploadError = $state('');
   let selectedFileName = $state('');
   let isPublishing = $state(false);
+  let isCompressing = $state(false);
+  let compressedImage: File | null = null;
   $effect(() => { if (form?.postError || data.openComposer) composerOpen = true; });
-  function validateImage(event: Event) {
+  async function validateImage(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     selectedFileName = file?.name ?? '';
-    uploadError = !file ? '' : !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
-      ? 'Velg et bilde i JPG-, PNG- eller WebP-format.'
-      : file.size > 25 * 1024 * 1024 ? 'Bildet kan være maks 25 MB.' : '';
+    uploadError = '';
+    compressedImage = null;
+    if (!file) return;
+    isCompressing = true;
+    try {
+      compressedImage = await compressImage(file);
+      selectedFileName = `${file.name} · klargjort ${Math.max(0.1, compressedImage.size / 1024 / 1024).toFixed(1)} MB`;
+    } catch (error) {
+      uploadError = error instanceof Error ? error.message : 'Bildet kunne ikke klargjøres.';
+    } finally {
+      isCompressing = false;
+    }
   }
+  const submitPost: SubmitFunction = ({ formData, cancel }) => {
+    if (isCompressing || uploadError || !compressedImage) { cancel(); return; }
+    formData.set('image', compressedImage);
+    isPublishing = true;
+    return async ({ update }) => { await update(); isPublishing = false; };
+  };
   function observeFeedEnd(node: HTMLElement) {
     const observer = new IntersectionObserver(async ([entry]) => {
       if (!entry.isIntersecting || feedMarked || !data.feedWindowEnd) return;
@@ -55,7 +75,7 @@
       <button class="modal-close" aria-label="Lukk" onclick={() => composerOpen = false}><X size={22}/></button>
       <PlusSquare size={40}/><h2 id="composer-title">Opprett nytt innlegg</h2>
       {#if !data.user}<p>Du må logge inn før du kan dele.</p><a class="select-button" href="/login">Logg inn</a>
-      {:else}<form method="POST" action="?/createPost" enctype="multipart/form-data" onsubmit={(event) => { if (uploadError) event.preventDefault(); else isPublishing = true; }}><label class="file-field">Velg bilde<input name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={validateImage} required/>{#if selectedFileName}<span>{selectedFileName}</span>{/if}</label><label>Bildetekst<textarea name="caption" maxlength="2200" rows="4" placeholder="Skriv noe om øyeblikket …"></textarea></label>{#if uploadError}<div class="form-error" role="alert">{uploadError}</div>{/if}{#if form?.postError}<div class="form-error" role="alert">{form.postError}</div>{/if}<button class="select-button" disabled={isPublishing || !!uploadError}>{isPublishing ? 'Publiserer …' : 'Del nå'}</button></form>{/if}
+      {:else}<form method="POST" action="?/createPost" enctype="multipart/form-data" use:enhance={submitPost}><label class="file-field">Velg bilde<input name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={validateImage} required/>{#if selectedFileName}<span>{selectedFileName}</span>{/if}</label><label>Bildetekst<textarea name="caption" maxlength="2200" rows="4" placeholder="Skriv noe om øyeblikket …"></textarea></label>{#if uploadError}<div class="form-error" role="alert">{uploadError}</div>{/if}{#if form?.postError}<div class="form-error" role="alert">{form.postError}</div>{/if}<button class="select-button" disabled={isPublishing || isCompressing || !!uploadError}>{isCompressing ? 'Klargjør bilde …' : isPublishing ? 'Laster opp …' : 'Del nå'}</button></form>{/if}
     </div>
   </div>
 {/if}
