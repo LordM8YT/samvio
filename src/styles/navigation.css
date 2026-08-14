@@ -10,7 +10,7 @@
   grid-template-columns: minmax(470px, 630px) 320px;
   justify-content: center;
   gap: 42px;
-  padding-left: 244px;
+  padding-left: 0;
 }
 
 .brand-mark {
@@ -61,7 +61,7 @@
 
 .section-layout {
   min-height: 100vh;
-  margin-left: 245px;
+  margin-left: 0;
   padding: 48px 32px 90px;
 }
 
@@ -96,12 +96,12 @@
 .profile-actions button { background: #fff; color: #222; border: 1px solid #cfcfcf; }
 
 @media (max-width: 1160px) {
-  .samvio-shell { grid-template-columns: minmax(470px,630px) 290px; padding-left: 74px; gap: 30px; }
+  .samvio-shell { grid-template-columns: minmax(470px,630px) 290px; padding-left: 0; gap: 30px; }
   .main-nav nav a span { display: none; }
 }
 
 @media (max-width: 920px) {
-  .samvio-shell { grid-template-columns: minmax(470px,630px); padding-left: 74px; }
+  .samvio-shell { grid-template-columns: minmax(470px,630px); padding-left: 0; }
 }
 
 @media (max-width: 700px) {

@@ -1,11 +1,6 @@
 <script lang="ts">
-  import { Clock3, Home, PlusSquare, Search, ShieldCheck, UserRound } from '@lucide/svelte';
+  import { Search, ShieldCheck, UserRound } from '@lucide/svelte';
   let { data, form } = $props();
-  const navigation = [
-    { slug: '', label: 'Hjem', icon: Home }, { slug: 'sok', label: 'Søk', icon: Search },
-    { slug: 'historikk', label: 'Historikk', icon: Clock3 },
-    { slug: '?opprett=1', label: 'Opprett', icon: PlusSquare }, { slug: 'profil', label: 'Profil', icon: UserRound }
-  ];
   const copy: Record<string, { title: string; intro: string; emptyTitle: string; emptyText: string }> = {
     utforsk: { title: 'Utforsk', intro: 'Finn fellesskap du selv velger å følge.', emptyTitle: 'Fellesskap kommer her', emptyText: 'Vi bygger temabaserte rom uten anbefalingsalgoritmer.' },
     videoer: { title: 'Videoer', intro: 'Videoer fra menneskene og fellesskapene du følger.', emptyTitle: 'Ingen videoer ennå', emptyText: 'Dette er vanlige videoinnlegg — ikke direktesending.' },
@@ -22,17 +17,6 @@
 </script>
 
 <svelte:head><title>{pageTitle} – Samvio</title></svelte:head>
-
-<aside class="main-nav">
-  <a class="wordmark" href="/" aria-label="Samvio hjem"><span class="brand-mark">S</span><span>Samvio</span></a>
-  <nav aria-label="Hovedmeny">
-    {#each navigation as item}
-      <a aria-label={item.label} class:active={item.slug === data.section || (item.slug === '' && data.section === '')} href={item.slug.startsWith('?') ? `/${item.slug}` : `/${item.slug}`}><item.icon size={25}/><span>{item.label}</span></a>
-    {/each}
-  </nav>
-</aside>
-
-<header class="mobile-header"><a class="wordmark" href="/">Samvio</a><a href="/historikk" aria-label="Historikk"><Clock3 size={23}/></a></header>
 
 <main class="section-layout">
   <div class="section-shell">
@@ -63,5 +47,3 @@
     {/if}
   </div>
 </main>
-
-<nav class="mobile-nav" aria-label="Mobilmeny"><a href="/" aria-label="Hjem"><Home size={24}/></a><a href="/sok" aria-label="Søk"><Search size={24}/></a><a href="/?opprett=1" aria-label="Opprett"><PlusSquare size={24}/></a><a href="/historikk" aria-label="Historikk"><Clock3 size={24}/></a><a href="/profil" aria-label="Profil"><UserRound size={24}/></a></nav>

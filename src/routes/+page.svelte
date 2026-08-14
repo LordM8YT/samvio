@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Clock3, Home, PlusSquare, Search, ShieldCheck, UserRound, X } from '@lucide/svelte';
+  import { PlusSquare, ShieldCheck, UserRound, X } from '@lucide/svelte';
   import PostCard from '$lib/components/PostCard.svelte';
   let { data, form } = $props();
   let composerOpen = $state(false);
@@ -27,23 +27,12 @@
     observer.observe(node);
     return { destroy: () => observer.disconnect() };
   }
-  const navigation = [
-    { label: 'Hjem', icon: Home, active: true, href: '/' }, { label: 'Søk', icon: Search, href: '/sok' },
-    { label: 'Historikk', icon: Clock3, href: '/historikk' },
-    { label: 'Opprett', icon: PlusSquare, action: true }, { label: 'Profil', icon: UserRound, href: '/profil' }
-  ];
 </script>
 
 <svelte:head><title>Samvio – ekte øyeblikk</title><meta name="description" content="En trygg, kronologisk og algoritmefri sosial møteplass." /></svelte:head>
 
 <div class="samvio-shell">
-  <aside class="main-nav">
-    <a class="wordmark" href="/" aria-label="Samvio hjem"><span class="brand-mark">S</span><span>Samvio</span></a>
-    <nav aria-label="Hovedmeny">{#each navigation as item}{#if item.action}<button aria-label={item.label} onclick={() => composerOpen = true}><item.icon size={25}/><span>{item.label}</span></button>{:else}<a aria-label={item.label} class:active={item.active} href={item.href}><item.icon size={25} strokeWidth={item.active ? 2.5 : 1.8}/><span>{item.label}</span></a>{/if}{/each}</nav>
-  </aside>
-
   <main class="feed-column">
-    <header class="mobile-header"><a class="wordmark" href="/">Samvio</a><a href="/historikk" aria-label="Historikk"><Clock3 size={23}/></a></header>
     <section class="feed-label"><div><h1>Siden sist</h1><span><i></i>Kronologisk · Ingen anbefalinger</span></div><p>{data.posts.length} nye øyeblikk fra {data.peopleCount} {data.peopleCount === 1 ? 'person' : 'personer'}.</p></section>
 
     {#if data.posts.length}
@@ -54,7 +43,6 @@
       <section class="empty-state"><div class="empty-icon"><ShieldCheck size={32}/></div><h2>Ingen nye øyeblikk</h2><p>Du har sett alt nytt fra menneskene du følger. Feeden fylles først når noen du har valgt å følge deler noe.</p><div class="empty-actions"><button class="select-button" onclick={() => composerOpen = true}>Del et øyeblikk</button><a href="/sok">Finn mennesker</a></div></section>
     {/if}
     <div class="feed-end" use:observeFeedEnd><ShieldCheck size={17}/><div><strong>Du er ajour</strong><span>Du har sett alt nytt fra menneskene du følger.</span></div><a href="/historikk">Se tidligere innlegg</a></div>
-    <nav class="mobile-nav" aria-label="Mobilmeny"><a href="/" aria-label="Hjem"><Home size={24}/></a><a href="/sok" aria-label="Søk"><Search size={24}/></a><button onclick={() => composerOpen = true} aria-label="Opprett"><PlusSquare size={24}/></button><a href="/historikk" aria-label="Historikk"><Clock3 size={24}/></a><a href="/profil" aria-label="Profil"><UserRound size={24}/></a></nav>
   </main>
 
   <aside class="right-rail"><div class="account-row"><div class="profile-avatar"><UserRound size={22}/></div><div><strong>{data.user?.realName ?? 'Din profil'}</strong><span>{data.user ? `@${data.user.username}` : 'Ikke logget inn'}</span></div>{#if !data.user}<a href="/login">Logg inn</a>{/if}</div><div class="safe-note"><ShieldCheck size={20}/><p><strong>Trygg alpha.</strong><br/>Inviterte testbrukere og tydelige grenser.</p></div><div class="rail-links"><a href="/priser">Priser</a><a href="/om">Om</a><a href="/hjelp">Hjelp</a><a href="/personvern">Personvern</a><a href="/vilkar">Vilkår</a></div><small>© 2026 SAMVIO</small></aside>
