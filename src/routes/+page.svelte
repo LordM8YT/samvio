@@ -3,7 +3,18 @@
   let { data, form } = $props();
   let composerOpen = $state(false);
   let feedMarked = $state(false);
+  let uploadError = $state('');
+  let selectedFileName = $state('');
+  let isPublishing = $state(false);
   $effect(() => { if (form?.postError || data.openComposer) composerOpen = true; });
+  function validateImage(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0];
+    selectedFileName = file?.name ?? '';
+    uploadError = !file ? '' : !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
+      ? 'Velg et bilde i JPG-, PNG- eller WebP-format.'
+      : file.size > 10 * 1024 * 1024 ? 'Bildet kan være maks 10 MB.' : '';
+  }
   function observeFeedEnd(node: HTMLElement) {
     const observer = new IntersectionObserver(async ([entry]) => {
       if (!entry.isIntersecting || feedMarked || !data.feedWindowEnd) return;
@@ -45,7 +56,7 @@
         {/each}
       </section>
     {:else}
-      <section class="empty-state"><div class="empty-icon"><ShieldCheck size={32}/></div><h2>Ingen nye øyeblikk</h2><p>Du har sett alt nytt fra menneskene du følger. Feeden fylles først når noen du har valgt å følge deler noe.</p><button class="text-action" onclick={() => composerOpen = true}>Del et øyeblikk</button></section>
+      <section class="empty-state"><div class="empty-icon"><ShieldCheck size={32}/></div><h2>Ingen nye øyeblikk</h2><p>Du har sett alt nytt fra menneskene du følger. Feeden fylles først når noen du har valgt å følge deler noe.</p><div class="empty-actions"><button class="select-button" onclick={() => composerOpen = true}>Del et øyeblikk</button><a href="/sok">Finn mennesker</a></div></section>
     {/if}
     <div class="feed-end" use:observeFeedEnd><ShieldCheck size={17}/><div><strong>Du er ajour</strong><span>Du har sett alt nytt fra menneskene du følger.</span></div><a href="/historikk">Se tidligere innlegg</a></div>
     <nav class="mobile-nav" aria-label="Mobilmeny"><a href="/" aria-label="Hjem"><Home size={24}/></a><a href="/sok" aria-label="Søk"><Search size={24}/></a><button onclick={() => composerOpen = true} aria-label="Opprett"><PlusSquare size={24}/></button><a href="/historikk" aria-label="Historikk"><Clock3 size={24}/></a><a href="/profil" aria-label="Profil"><UserRound size={24}/></a></nav>
@@ -60,7 +71,7 @@
       <button class="modal-close" aria-label="Lukk" onclick={() => composerOpen = false}><X size={22}/></button>
       <PlusSquare size={40}/><h2 id="composer-title">Opprett nytt innlegg</h2>
       {#if !data.user}<p>Du må logge inn før du kan dele.</p><a class="select-button" href="/login">Logg inn</a>
-      {:else}<form method="POST" action="?/createPost" enctype="multipart/form-data"><label class="file-field">Velg bilde<input name="image" type="file" accept="image/jpeg,image/png,image/webp" required/></label><label>Bildetekst<textarea name="caption" maxlength="2200" rows="4" placeholder="Skriv noe om øyeblikket …"></textarea></label>{#if form?.postError}<div class="form-error" role="alert">{form.postError}</div>{/if}<button class="select-button">Del nå</button></form>{/if}
+      {:else}<form method="POST" action="?/createPost" enctype="multipart/form-data" onsubmit={(event) => { if (uploadError) event.preventDefault(); else isPublishing = true; }}><label class="file-field">Velg bilde<input name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={validateImage} required/>{#if selectedFileName}<span>{selectedFileName}</span>{/if}</label><label>Bildetekst<textarea name="caption" maxlength="2200" rows="4" placeholder="Skriv noe om øyeblikket …"></textarea></label>{#if uploadError}<div class="form-error" role="alert">{uploadError}</div>{/if}{#if form?.postError}<div class="form-error" role="alert">{form.postError}</div>{/if}<button class="select-button" disabled={isPublishing || !!uploadError}>{isPublishing ? 'Publiserer …' : 'Del nå'}</button></form>{/if}
     </div>
   </div>
 {/if}

@@ -7,7 +7,7 @@
 .samvio-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 244px minmax(470px, 630px) 320px;
+  grid-template-columns: minmax(470px, 630px) 320px;
   justify-content: center;
   gap: 42px;
   padding-left: 244px;
@@ -96,7 +96,7 @@
 .profile-actions button { background: #fff; color: #222; border: 1px solid #cfcfcf; }
 
 @media (max-width: 1160px) {
-  .samvio-shell { grid-template-columns: 74px minmax(470px,630px) 290px; padding-left: 74px; gap: 30px; }
+  .samvio-shell { grid-template-columns: minmax(470px,630px) 290px; padding-left: 74px; gap: 30px; }
   .main-nav nav a span { display: none; }
 }
 

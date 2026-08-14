@@ -13,7 +13,7 @@ Installer `ops/samvio.service` i `/etc/systemd/system/` og Nginx-filen i `/etc/n
 
 ## Påkrevde miljøvariabler
 
-`NODE_ENV=production`, `HOST=127.0.0.1`, `PORT=3000`, `ORIGIN=https://samvio.no`, `AUTH_COOKIE_SECURE=true`, `DATABASE_URL` og `UPLOAD_DIR=/var/lib/samvio/uploads`.
+`NODE_ENV=production`, `HOST=127.0.0.1`, `PORT=3000`, `ORIGIN=https://samvio.no`, `AUTH_COOKIE_SECURE=true`, `BODY_SIZE_LIMIT=12M`, `SHUTDOWN_TIMEOUT=5`, `DATABASE_URL` og `UPLOAD_DIR=/var/lib/samvio/uploads`.
 
 ## Før DNS og HTTPS
 

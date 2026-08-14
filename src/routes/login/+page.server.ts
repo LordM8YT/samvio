@@ -11,11 +11,12 @@ import type { Actions, PageServerLoad } from './$types';
 
 const loginSchema = z.object({ email: z.string().trim().email().transform((v) => v.toLowerCase()), password: z.string().min(8).max(128) });
 const registerSchema = loginSchema.extend({ realName: z.string().trim().min(2).max(120), username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,30}$/), birthDate: z.coerce.date().max(new Date()) });
+const nextPath = (url: URL) => { const next = url.searchParams.get('next'); return next?.startsWith('/') && !next.startsWith('//') ? next : '/'; };
 
-export const load: PageServerLoad = ({ locals }) => { if (locals.user) redirect(303, '/'); };
+export const load: PageServerLoad = ({ locals, url }) => { if (locals.user) redirect(303, nextPath(url)); };
 
 export const actions: Actions = {
-  login: async ({ request, cookies, getClientAddress }) => {
+  login: async ({ request, cookies, getClientAddress, url }) => {
     const parsed = loginSchema.safeParse(Object.fromEntries(await request.formData()));
     if (!parsed.success) return fail(400, { mode: 'login', message: 'Kontroller e-post og passord.' });
     const rate = consumeRateLimit(`login:${getClientAddress()}:${parsed.data.email}`, 5, 15 * 60_000);
@@ -23,10 +24,10 @@ export const actions: Actions = {
     try {
       const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
       if (!user?.passwordHash || !(await compare(parsed.data.password, user.passwordHash))) return fail(400, { mode: 'login', message: 'Feil e-post eller passord.' });
-      const token = await createSession(user.id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, '/');
+      const token = await createSession(user.id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, nextPath(url));
     } catch (error) { if (isRedirect(error)) throw error; return fail(503, { mode: 'login', message: 'Databasen er ikke tilgjengelig akkurat nå.' }); }
   },
-  register: async ({ request, cookies, getClientAddress }) => {
+  register: async ({ request, cookies, getClientAddress, url }) => {
     const rate = consumeRateLimit(`register:${getClientAddress()}`, 3, 60 * 60_000);
     if (!rate.allowed) return fail(429, { mode: 'register', message: 'For mange registreringsforsøk. Prøv igjen senere.' });
     const parsed = registerSchema.safeParse(Object.fromEntries(await request.formData()));
@@ -40,7 +41,7 @@ export const actions: Actions = {
         await tx.insert(users).values({ id, email: parsed.data.email, passwordHash: await hash(parsed.data.password, 12), accountStatus: 'active' });
         await tx.insert(profiles).values({ userId: id, realName: parsed.data.realName, username: parsed.data.username, ageBand });
       });
-      const token = await createSession(id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, '/');
+      const token = await createSession(id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, nextPath(url));
     } catch (error) { if (isRedirect(error)) throw error; return fail(409, { mode: 'register', message: 'E-post eller brukernavn er allerede i bruk, eller databasen mangler.' }); }
   }
 };

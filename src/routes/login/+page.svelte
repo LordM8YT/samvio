@@ -12,14 +12,14 @@
     <p>{mode === 'login' ? 'Logg inn på Samvio alpha.' : 'Alpha er for inviterte testbrukere fra 13 år.'}</p>
     <div class="tabs"><button class:active={mode === 'login'} onclick={() => mode = 'login'}>Logg inn</button><button class:active={mode === 'register'} onclick={() => mode = 'register'}>Ny konto</button></div>
     {#if form?.message}<div class="form-error" role="alert">{form.message}</div>{/if}
-    <form method="POST" action={mode === 'login' ? '?/login' : '?/register'}>
+    <form method="POST" action={mode === 'login' ? '?/login' : '?/register'} autocomplete="on">
       {#if mode === 'register'}
-        <label>Fullt navn<input name="realName" autocomplete="name" required minlength="2" maxlength="120"/></label>
-        <label>Brukernavn<input name="username" autocomplete="username" required pattern="[a-z0-9_]+" minlength="3" maxlength="30" placeholder="kun små bokstaver"/></label>
-        <label>Fødselsdato<input name="birthDate" type="date" autocomplete="bday" required/></label>
+        <label for="real-name">Fullt navn<input id="real-name" name="realName" autocomplete="name" required minlength="2" maxlength="120"/></label>
+        <label for="new-username">Brukernavn<input id="new-username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required pattern="[a-z0-9_]+" minlength="3" maxlength="30" placeholder="kun små bokstaver"/></label>
+        <label for="birth-date">Fødselsdato<input id="birth-date" name="birthDate" type="date" autocomplete="bday" required/></label>
       {/if}
-      <label>E-post<input name="email" type="email" autocomplete="email" required/></label>
-      <label>Passord<input name="password" type="password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength="8"/></label>
+      <label for="email">E-post<input id="email" name="email" type="email" inputmode="email" autocomplete={mode === 'login' ? 'username' : 'email'} autocapitalize="none" spellcheck="false" required/></label>
+      <label for="password">Passord<input id="password" name="password" type="password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength="8"/></label>
       <button class="submit">{mode === 'login' ? 'Logg inn' : 'Opprett konto'}</button>
     </form>
     <div class="dev-notice"><span class="notice-icon"><ShieldCheck size={18}/></span><span><strong>Alpha-konto</strong> Kontoen er ikke BankID-verifisert. Ikke del sensitive personopplysninger.</span></div>
