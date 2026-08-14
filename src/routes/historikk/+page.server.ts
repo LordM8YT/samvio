@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, inArray, lt, or } from 'drizzle-orm';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, postMedia, posts, profiles } from '$lib/server/db/schema';
+import { follows, postMedia, postReactions, posts, profiles, users } from '$lib/server/db/schema';
 import type { PageServerLoad } from './$types';
 
 const PAGE_SIZE = 24;
@@ -33,14 +33,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         : undefined;
   const rows = await db.select({
     id: posts.id, caption: posts.caption, createdAt: posts.createdAt,
-    authorName: profiles.realName, authorUsername: profiles.username, mediaId: postMedia.id
+    authorName: profiles.realName, authorUsername: profiles.username, authorRole: users.accountRole, mediaId: postMedia.id
   }).from(posts)
     .innerJoin(profiles, eq(profiles.userId, posts.authorId))
+    .innerJoin(users, eq(users.id, posts.authorId))
     .leftJoin(postMedia, eq(postMedia.postId, posts.id))
     .where(timeFilter ? and(audience, timeFilter) : audience)
     .orderBy(desc(posts.createdAt), desc(posts.id)).limit(PAGE_SIZE + 1);
   const hasMore = rows.length > PAGE_SIZE;
   const page = rows.slice(0, PAGE_SIZE);
+  const likedRows = page.length ? await db.select({ postId: postReactions.postId }).from(postReactions)
+    .where(and(eq(postReactions.userId, locals.user.id), inArray(postReactions.postId, page.map((post) => post.id)))) : [];
+  const likedIds = new Set(likedRows.map((row) => row.postId));
+  const historyPosts = page.map((post) => ({ ...post, liked: likedIds.has(post.id) }));
   const last = page.at(-1);
-  return { period, posts: page, nextCursor: hasMore && last ? `${last.createdAt.toISOString()}|${last.id}` : null };
+  return { period, posts: historyPosts, nextCursor: hasMore && last ? `${last.createdAt.toISOString()}|${last.id}` : null };
 };

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { CalendarDays, UserRound } from '@lucide/svelte';
+  import { CalendarDays } from '@lucide/svelte';
+  import PostCard from '$lib/components/PostCard.svelte';
   let { data } = $props();
   const periods = [{ id: 'week', label: 'Denne uka' }, { id: 'month', label: 'Denne måneden' }, { id: 'year', label: 'Dette året' }, { id: 'older', label: 'Eldre' }];
 </script>
@@ -11,7 +12,7 @@
     <header><span><CalendarDays size={25}/></span><div><h1>Tidligere øyeblikk</h1><p>Et rolig arkiv over det menneskene dine har delt.</p></div></header>
     <nav aria-label="Velg tidsperiode">{#each periods as period}<a class:active={period.id === data.period} href={`/historikk?periode=${period.id}`}>{period.label}</a>{/each}</nav>
     {#if data.posts.length}
-      <section class="history-list">{#each data.posts as post}<article><div class="history-meta"><span><UserRound size={18}/></span><div><strong>{post.authorName}</strong><small>@{post.authorUsername} · {post.createdAt.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</small></div></div>{#if post.mediaId}<img src={`/media/${post.mediaId}`} alt={post.caption || `Øyeblikk fra ${post.authorName}`}/>{/if}{#if post.caption}<p>{post.caption}</p>{/if}</article>{/each}</section>
+      <section class="history-list">{#each data.posts as post}<PostCard {post}/>{/each}</section>
       {#if data.nextCursor}<a class="more-history" href={`/historikk?periode=${data.period}&foer=${encodeURIComponent(data.nextCursor)}`}>Vis eldre innlegg</a>{/if}
     {:else}
       <section class="history-empty"><CalendarDays size={35}/><h2>Ingen øyeblikk i denne perioden</h2><p>Velg en annen periode, eller kom tilbake når menneskene dine har delt mer.</p></section>
