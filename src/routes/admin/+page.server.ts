@@ -1,4 +1,5 @@
-import { readdir, stat } from 'node:fs/promises';
+import { readdir, stat, statfs } from 'node:fs/promises';
+import { arch, cpus, freemem, hostname, loadavg, platform, release, totalmem, uptime } from 'node:os';
 import { and, count, desc, eq, gte, inArray, like, or } from 'drizzle-orm';
 import { fail } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
@@ -20,7 +21,7 @@ export const load: PageServerLoad = async ({ url }) => {
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const userFilter = query ? or(like(profiles.realName, `%${query}%`), like(profiles.username, `%${query}%`), like(users.email, `%${query}%`)) : undefined;
 
-  const [statsRows, userRows, reportRows, storageBytes] = await Promise.all([
+  const [statsRows, userRows, reportRows, storageBytes, disk] = await Promise.all([
     Promise.all([
       db.select({ value: count() }).from(users).where(gte(users.lastSeenAt, since)),
       db.select({ value: count() }).from(posts),
@@ -31,7 +32,8 @@ export const load: PageServerLoad = async ({ url }) => {
       .from(users).innerJoin(profiles, eq(profiles.userId, users.id)).where(userFilter).orderBy(desc(users.createdAt)).limit(100),
     db.select({ id: contentReports.id, targetType: contentReports.targetType, targetId: contentReports.targetId, reason: contentReports.reason, details: contentReports.details, status: contentReports.status, createdAt: contentReports.createdAt, reporterName: profiles.realName, reporterUsername: profiles.username })
       .from(contentReports).innerJoin(profiles, eq(profiles.userId, contentReports.reporterId)).orderBy(desc(contentReports.createdAt)).limit(100),
-    directorySize(uploadDirectory())
+    directorySize(uploadDirectory()),
+    statfs(uploadDirectory()).catch(() => null)
   ]);
 
   const userIds = userRows.map((user) => user.id);
@@ -54,7 +56,14 @@ export const load: PageServerLoad = async ({ url }) => {
     stats: { active24: statsRows[0][0].value, posts: statsRows[1][0].value, reports: statsRows[2][0].value, users: statsRows[3][0].value },
     users: userRows.map((user) => ({ ...user, subscriber: subscribers.has(user.id) })),
     reports: reportRows.map((report) => ({ ...report, target: targets.get(report.targetId) ?? null })),
-    storage: { bytes: storageBytes, limitBytes: 38 * 1024 * 1024 * 1024 }
+    storage: { bytes: storageBytes, limitBytes: disk ? disk.blocks * disk.bsize : 38 * 1024 * 1024 * 1024 },
+    system: {
+      hostname: hostname(), platform: platform(), release: release(), arch: arch(),
+      uptimeSeconds: uptime(), cpuCount: cpus().length, cpuModel: cpus()[0]?.model ?? 'Ukjent CPU',
+      load: loadavg(), memoryTotal: totalmem(), memoryFree: freemem(), processMemory: process.memoryUsage().rss,
+      diskTotal: disk ? disk.blocks * disk.bsize : 0, diskFree: disk ? disk.bavail * disk.bsize : 0,
+      nodeVersion: process.version
+    }
   };
 };
 
