@@ -1,8 +1,9 @@
 import { and, eq, inArray, like, ne, or } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, profiles } from '$lib/server/db/schema';
+import { follows, postMedia, posts, profiles, users } from '$lib/server/db/schema';
 import { deleteSession, SESSION_COOKIE } from '$lib/server/auth';
+import { removeUpload } from '$lib/server/storage';
 import type { Actions, PageServerLoad } from './$types';
 
 const publicSections = new Set(['om', 'personvern', 'vilkar', 'hjelp']);
@@ -26,10 +27,36 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     results = matches.map((match) => ({ ...match, isFollowing: following.has(match.userId) }));
   }
 
-  return { section: params.section, user: locals.user, query, results };
+  let profileBio: string | null = null;
+  if (params.section === 'profil' && locals.user) {
+    const [profile] = await db.select({ bio: profiles.bio }).from(profiles).where(eq(profiles.userId, locals.user.id)).limit(1);
+    profileBio = profile?.bio ?? null;
+  }
+
+  return { section: params.section, user: locals.user, query, results, profileBio };
 };
 
 export const actions: Actions = {
+  updateProfile: async ({ request, locals }) => {
+    if (!locals.user) redirect(303, '/login');
+    const bioValue = (await request.formData()).get('bio');
+    if (typeof bioValue !== 'string') return fail(400, { profileError: 'Ugyldig profiltekst.' });
+    const bio = bioValue.trim();
+    if (bio.length > 300) return fail(400, { profileError: 'Profilteksten kan være maks 300 tegn.' });
+    await db.update(profiles).set({ bio: bio || null }).where(eq(profiles.userId, locals.user.id));
+    return { profileSaved: true };
+  },
+  deleteAccount: async ({ request, locals, cookies }) => {
+    if (!locals.user) redirect(303, '/login');
+    const confirmation = (await request.formData()).get('confirmation');
+    if (confirmation !== 'SLETT') return fail(400, { deleteError: 'Skriv SLETT for å bekrefte.' });
+    const media = await db.select({ storageKey: postMedia.storageKey }).from(postMedia)
+      .innerJoin(posts, eq(posts.id, postMedia.postId)).where(eq(posts.authorId, locals.user.id));
+    await db.delete(users).where(eq(users.id, locals.user.id));
+    await Promise.allSettled(media.map((item) => removeUpload(item.storageKey)));
+    cookies.delete(SESSION_COOKIE, { path: '/' });
+    redirect(303, '/login?deleted=1');
+  },
   follow: async ({ request, locals }) => {
     if (!locals.user) redirect(303, '/login');
     const targetId = (await request.formData()).get('targetId');

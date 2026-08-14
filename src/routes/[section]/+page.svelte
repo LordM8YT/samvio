@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Clock3, Home, PlusSquare, Search, ShieldCheck, UserRound } from '@lucide/svelte';
-  let { data } = $props();
+  let { data, form } = $props();
   const navigation = [
     { slug: '', label: 'Hjem', icon: Home }, { slug: 'sok', label: 'Søk', icon: Search },
     { slug: 'historikk', label: 'Historikk', icon: Clock3 },
@@ -44,7 +44,7 @@
       <h1>Søk</h1><p class="section-intro">Finn ekte, verifiserte mennesker på Samvio.</p>
       <form class="search-form" method="GET"><input name="q" value={data.query} placeholder="Søk etter navn eller brukernavn" aria-label="Søk"/><button>Søk</button></form>
       {#if data.query && data.results.length}
-        <div class="search-results">{#each data.results as person}<div class="person-row"><span><UserRound size={21}/></span><div><strong>{person.realName}</strong><small>@{person.username}</small></div><form method="POST" action={person.isFollowing ? '?/unfollow' : '?/follow'}><input type="hidden" name="targetId" value={person.userId}/><button>{person.isFollowing ? 'Slutt å følge' : 'Følg'}</button></form></div>{/each}</div>
+        <div class="search-results">{#each data.results as person}<div class="person-row"><a href={`/bruker/${person.username}`} aria-label={`Se profilen til ${person.realName}`}><UserRound size={21}/></a><div><a href={`/bruker/${person.username}`}><strong>{person.realName}</strong><small>@{person.username}</small></a></div><form method="POST" action={person.isFollowing ? '?/unfollow' : '?/follow'}><input type="hidden" name="targetId" value={person.userId}/><button>{person.isFollowing ? 'Slutt å følge' : 'Følg'}</button></form></div>{/each}</div>
       {:else if data.query}
         <div class="section-card section-empty"><Search size={34}/><h2>Ingen treff</h2><p>Vi fant ingen profiler som matcher «{data.query}».</p></div>
       {/if}
@@ -52,7 +52,9 @@
       {@const user = data.user}
       <h1>Profil</h1><p class="section-intro">Din konto og medlemskap.</p>
       {#if user}
-        <section class="section-card"><div class="profile-details"><UserRound size={42}/><p><strong>{user.realName}</strong><br/><span>@{user.username}</span></p><p>{user.email}</p><p><ShieldCheck size={16}/> Lokal testkonto</p></div><div class="profile-actions"><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
+        <section class="section-card"><div class="profile-details"><UserRound size={42}/><p><strong>{user.realName}</strong><br/><span>@{user.username}</span></p><p>{user.email}</p><p><ShieldCheck size={16}/> Alpha-konto med e-post</p></div><div class="profile-actions"><a href={`/bruker/${user.username}`}>Se din tidslinje</a><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
+        <section class="section-card account-settings"><h2>Profiltekst</h2><form method="POST" action="?/updateProfile"><textarea name="bio" maxlength="300" rows="4" placeholder="Fortell kort hvem du er …">{data.profileBio ?? ''}</textarea><button>Lagre profiltekst</button></form>{#if form?.profileError}<p class="form-error">{form.profileError}</p>{:else if form?.profileSaved}<p class="form-success">Profilen er lagret.</p>{/if}</section>
+        <details class="section-card danger-zone"><summary>Slett konto og innhold</summary><p>Dette sletter kontoen, følgerelasjoner, innlegg og opplastede bilder permanent.</p><form method="POST" action="?/deleteAccount"><label>Skriv SLETT for å bekrefte<input name="confirmation" autocomplete="off" required/></label><button>Slett kontoen permanent</button></form>{#if form?.deleteError}<p class="form-error">{form.deleteError}</p>{/if}</details>
       {/if}
     {:else}
       {@const section = copy[data.section]}

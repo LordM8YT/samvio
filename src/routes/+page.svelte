@@ -38,7 +38,7 @@
       <section class="post-list" aria-label="Innlegg">
         {#each data.posts as post}
           <article class="post-card">
-            <header><span class="post-avatar"><UserRound size={19}/></span><div><strong>{post.authorName}</strong><small>@{post.authorUsername}</small></div><time datetime={post.createdAt.toISOString()}>{post.createdAt.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}</time></header>
+            <header><a class="post-avatar" href={`/bruker/${post.authorUsername}`} aria-label={`Se profilen til ${post.authorName}`}><UserRound size={19}/></a><div><a href={`/bruker/${post.authorUsername}`}><strong>{post.authorName}</strong><small>@{post.authorUsername}</small></a></div><time datetime={post.createdAt.toISOString()}>{post.createdAt.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}</time></header>
             {#if post.mediaId}<img src={`/media/${post.mediaId}`} alt={post.caption || `Bilde fra ${post.authorName}`} />{/if}
             {#if post.caption}<p><strong>{post.authorUsername}</strong> {post.caption}</p>{/if}
           </article>
