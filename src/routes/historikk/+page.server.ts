@@ -18,13 +18,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) redirect(303, '/login?next=/historikk');
   const period = ['week', 'month', 'year', 'older'].includes(url.searchParams.get('periode') ?? '') ? url.searchParams.get('periode')! : 'month';
   const cursorValue = url.searchParams.get('foer');
-  const cursor = cursorValue ? new Date(cursorValue) : null;
+  const [cursorDateValue, cursorId] = cursorValue?.split('|') ?? [];
+  const cursorDate = cursorDateValue ? new Date(cursorDateValue) : null;
   const followedUsers = db.select({ id: follows.followedId }).from(follows)
     .where(and(eq(follows.followerId, locals.user.id), eq(follows.status, 'accepted')));
   const audience = or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers))!;
   const start = periodStart(period);
-  const timeFilter = cursor && !Number.isNaN(cursor.getTime())
-    ? lt(posts.createdAt, cursor)
+  const timeFilter = cursorDate && cursorId && !Number.isNaN(cursorDate.getTime())
+    ? or(lt(posts.createdAt, cursorDate), and(eq(posts.createdAt, cursorDate), lt(posts.id, cursorId)))
     : period === 'older'
       ? lt(posts.createdAt, new Date(new Date().getFullYear(), 0, 1))
       : start
@@ -40,5 +41,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     .orderBy(desc(posts.createdAt), desc(posts.id)).limit(PAGE_SIZE + 1);
   const hasMore = rows.length > PAGE_SIZE;
   const page = rows.slice(0, PAGE_SIZE);
-  return { period, posts: page, nextCursor: hasMore ? page.at(-1)?.createdAt.toISOString() ?? null : null };
+  const last = page.at(-1);
+  return { period, posts: page, nextCursor: hasMore && last ? `${last.createdAt.toISOString()}|${last.id}` : null };
 };
