@@ -62,6 +62,21 @@ export const postMedia = mysqlTable('post_media', {
   metadata: json('metadata')
 }, (t) => [index('idx_post_media_post').on(t.postId, t.sortOrder)]);
 
+export const postReactions = mysqlTable('post_reactions', {
+  postId: char('post_id', { length: 36 }).notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  userId: char('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  reaction: mysqlEnum('reaction', ['like']).notNull().default('like'),
+  createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow()
+}, (t) => [primaryKey({ columns: [t.postId, t.userId] }), index('idx_post_reactions_user').on(t.userId, t.createdAt)]);
+
+export const comments = mysqlTable('comments', {
+  id: char('id', { length: 36 }).primaryKey(),
+  postId: char('post_id', { length: 36 }).notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  authorId: char('author_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  body: varchar('body', { length: 1000 }).notNull(),
+  createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow()
+}, (t) => [index('idx_comments_post_chronological').on(t.postId, t.createdAt, t.id), index('idx_comments_author').on(t.authorId, t.createdAt)]);
+
 export const organizations = mysqlTable('organizations', {
   id: char('id', { length: 36 }).primaryKey(), name: varchar('name', { length: 160 }).notNull(),
   slug: varchar('slug', { length: 60 }).notNull(),

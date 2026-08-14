@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, desc, eq, gt, inArray, lte, or } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, postMedia, posts, profiles, userFeedState } from '$lib/server/db/schema';
+import { follows, postMedia, postReactions, posts, profiles, userFeedState } from '$lib/server/db/schema';
 import { removeUpload, saveUpload } from '$lib/server/storage';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
@@ -36,8 +36,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       .leftJoin(postMedia, eq(postMedia.postId, posts.id))
       .where(feedFilter)
       .orderBy(desc(posts.createdAt), desc(posts.id)).limit(500);
+    const likedRows = rows.length ? await db.select({ postId: postReactions.postId }).from(postReactions).where(and(eq(postReactions.userId, locals.user.id), inArray(postReactions.postId, rows.map((post) => post.id)))) : [];
+    const likedIds = new Set(likedRows.map((row) => row.postId));
+    const feedPosts = rows.map((post) => ({ ...post, liked: likedIds.has(post.id) }));
     const peopleCount = new Set(rows.map((post) => post.authorUsername)).size;
-    return { user: locals.user, posts: rows, openComposer, caughtUpAt: state?.caughtUpAt ?? null, feedWindowEnd: rows.length < 500 ? feedWindowEnd : null, peopleCount };
+    return { user: locals.user, posts: feedPosts, openComposer, caughtUpAt: state?.caughtUpAt ?? null, feedWindowEnd: rows.length < 500 ? feedWindowEnd : null, peopleCount };
   } catch {
     return { user: locals.user, posts: [], openComposer, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0, feedError: true };
   }

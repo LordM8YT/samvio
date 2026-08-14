@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Clock3, Home, PlusSquare, Search, ShieldCheck, UserRound, X } from '@lucide/svelte';
+  import PostCard from '$lib/components/PostCard.svelte';
   let { data, form } = $props();
   let composerOpen = $state(false);
   let feedMarked = $state(false);
@@ -47,13 +48,7 @@
 
     {#if data.posts.length}
       <section class="post-list" aria-label="Innlegg">
-        {#each data.posts as post}
-          <article class="post-card">
-            <header><a class="post-avatar" href={`/bruker/${post.authorUsername}`} aria-label={`Se profilen til ${post.authorName}`}><UserRound size={19}/></a><div><a href={`/bruker/${post.authorUsername}`}><strong>{post.authorName}</strong><small>@{post.authorUsername}</small></a></div><time datetime={post.createdAt.toISOString()}>{post.createdAt.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' })}</time></header>
-            {#if post.mediaId}<img src={`/media/${post.mediaId}`} alt={post.caption || `Bilde fra ${post.authorName}`} />{/if}
-            {#if post.caption}<p><strong>{post.authorUsername}</strong> {post.caption}</p>{/if}
-          </article>
-        {/each}
+        {#each data.posts as post}<PostCard {post}/>{/each}
       </section>
     {:else}
       <section class="empty-state"><div class="empty-icon"><ShieldCheck size={32}/></div><h2>Ingen nye øyeblikk</h2><p>Du har sett alt nytt fra menneskene du følger. Feeden fylles først når noen du har valgt å følge deler noe.</p><div class="empty-actions"><button class="select-button" onclick={() => composerOpen = true}>Del et øyeblikk</button><a href="/sok">Finn mennesker</a></div></section>
