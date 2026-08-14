@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { comments, follows, postMedia, posts, profiles, postReactions, users } from '$lib/server/db/schema';
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const [post] = await db.select({ id: posts.id, caption: posts.caption, createdAt: posts.createdAt, authorName: profiles.realName, authorUsername: profiles.username, authorRole: users.accountRole, mediaId: postMedia.id })
     .from(posts).innerJoin(profiles, eq(profiles.userId, posts.authorId)).innerJoin(users, eq(users.id, posts.authorId)).leftJoin(postMedia, eq(postMedia.postId, posts.id)).where(eq(posts.id, params.id)).limit(1);
   const rows = await db.select({ id: comments.id, body: comments.body, createdAt: comments.createdAt, authorName: profiles.realName, authorUsername: profiles.username })
-    .from(comments).innerJoin(profiles, eq(profiles.userId, comments.authorId)).where(eq(comments.postId, params.id)).orderBy(asc(comments.createdAt), asc(comments.id)).limit(300);
+    .from(comments).innerJoin(profiles, eq(profiles.userId, comments.authorId)).where(eq(comments.postId, params.id)).orderBy(desc(comments.createdAt), desc(comments.id)).limit(300);
   const [reaction] = await db.select({ postId: postReactions.postId }).from(postReactions).where(and(eq(postReactions.postId, params.id), eq(postReactions.userId, locals.user.id))).limit(1);
   return { post: { ...post, liked: !!reaction }, comments: rows };
 };
