@@ -6,7 +6,7 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
   if (!locals.user) redirect(303, `/login?next=/bruker/${encodeURIComponent(params.username)}`);
-  const [profile] = await db.select({ userId: profiles.userId, realName: profiles.realName, username: profiles.username, bio: profiles.bio, avatarPath: profiles.avatarPath, coverPath: profiles.coverPath, verified: profiles.isIdentityVerified, role: users.accountRole })
+  const [profile] = await db.select({ userId: profiles.userId, realName: profiles.realName, username: profiles.username, bio: profiles.bio, avatarPath: profiles.avatarPath, coverPath: profiles.coverPath, profileUpdatedAt: profiles.updatedAt, verified: profiles.isIdentityVerified, role: users.accountRole })
     .from(profiles).innerJoin(users, eq(users.id, profiles.userId)).where(eq(profiles.username, params.username.toLowerCase())).limit(1);
   if (!profile) error(404, 'Profilen finnes ikke');
 

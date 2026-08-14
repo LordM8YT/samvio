@@ -20,9 +20,9 @@
 
 <main class="profile-page">
   <div class="profile-shell">
-    <div class:has-cover={data.profile.coverPath} class="profile-cover">{#if data.profile.coverPath}<img src={`/profilmedia/cover/${data.profile.username}`} alt="Forsidebilde for ${data.profile.realName}"/>{/if}</div>
+    <div class:has-cover={data.profile.coverPath} class="profile-cover">{#if data.profile.coverPath}<img src={`/profilmedia/cover/${data.profile.username}?v=${data.profile.profileUpdatedAt.getTime()}`} alt="Forsidebilde for ${data.profile.realName}"/>{/if}</div>
     <header class="profile-header">
-      <span class="avatar">{#if data.profile.avatarPath}<img src={`/profilmedia/avatar/${data.profile.username}`} alt="Profilbilde av ${data.profile.realName}"/>{:else}<UserRound size={38}/>{/if}</span>
+      <span class="avatar">{#if data.profile.avatarPath}<img src={`/profilmedia/avatar/${data.profile.username}?v=${data.profile.profileUpdatedAt.getTime()}`} alt="Profilbilde av ${data.profile.realName}"/>{:else}<UserRound size={38}/>{/if}</span>
       <div><h1>{data.profile.realName} {#if data.profile.role === 'admin'}<span class="role-badge">Admin</span>{:else if data.profile.role === 'moderator'}<span class="role-badge mod">Moderator</span>{/if}</h1><p>@{data.profile.username}</p></div>
       {#if data.isOwnProfile}
         <a class="edit-profile" href="/innstillinger#profil">Rediger profil</a>

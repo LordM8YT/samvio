@@ -16,5 +16,5 @@ export const GET: RequestHandler = async ({ params, locals }) => {
   if (!bytes) error(404, 'Fant ikke bildet');
   const extension = storageKey.split('.').pop();
   const contentType = extension === 'jpg' ? 'image/jpeg' : extension === 'png' ? 'image/png' : 'image/webp';
-  return new Response(bytes, { headers: { 'content-type': contentType, 'cache-control': 'private, max-age=3600' } });
+  return new Response(bytes, { headers: { 'content-type': contentType, 'cache-control': 'private, no-cache' } });
 };
