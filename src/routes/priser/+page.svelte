@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { ArrowLeft, ShieldCheck } from '@lucide/svelte';
+  import { ShieldCheck } from '@lucide/svelte';
   import { plans } from '$lib/plans';
 </script>
 <svelte:head><title>Priser – Samvio</title><meta name="description" content="En rettferdig prismodell uten annonser eller salg av persondata." /></svelte:head>
 <main class="pricing-page">
-  <nav><a href="/"><ArrowLeft size={18}/> Tilbake til Samvio</a></nav>
   <header><span>En rettferdig modell</span><h1>Privatpersoner betaler minst.<br/>Organisasjoner bærer mer.</h1><p>Gratisversjonen er et fullverdig sosialt produkt. Betalte abonnement gir mer kapasitet og administrasjon — aldri bedre sikkerhet eller en bedre plass i feeden.</p></header>
   <section class="plan-grid">
     {#each plans as plan}<article class:featured={plan.featured}>{#if plan.featured}<div class="badge">Anbefalt for familier</div>{/if}<p class="audience">{plan.audience}</p><h2>{plan.name}</h2><div class="price">{#if plan.monthlyPriceNok === null}<strong>Ta kontakt</strong>{:else}<strong>{plan.monthlyPriceNok} kr</strong><span>/ måned</span>{/if}</div><ul>{#each plan.features as feature}<li><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>{feature}</span></li>{/each}</ul><button disabled>Kommer i testfasen</button></article>{/each}

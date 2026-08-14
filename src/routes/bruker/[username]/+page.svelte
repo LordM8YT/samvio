@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeft, CalendarDays, ShieldCheck, UserRound } from '@lucide/svelte';
+  import { CalendarDays, ShieldCheck, UserRound } from '@lucide/svelte';
   let { data, form } = $props();
 </script>
 
@@ -7,7 +7,6 @@
 
 <main class="profile-page">
   <div class="profile-shell">
-    <a class="back" href="/sok"><ArrowLeft size={17}/> Tilbake til søk</a>
     <header class="profile-header">
       <span class="avatar"><UserRound size={38}/></span>
       <div><h1>{data.profile.realName}</h1><p>@{data.profile.username}</p>{#if data.profile.bio}<div class="bio">{data.profile.bio}</div>{/if}</div>

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ArrowLeft, CalendarDays, UserRound } from '@lucide/svelte';
+  import { CalendarDays, UserRound } from '@lucide/svelte';
   let { data } = $props();
   const periods = [{ id: 'week', label: 'Denne uka' }, { id: 'month', label: 'Denne måneden' }, { id: 'year', label: 'Dette året' }, { id: 'older', label: 'Eldre' }];
 </script>
@@ -8,7 +8,6 @@
 
 <main class="history-page">
   <div class="history-shell">
-    <a class="back-link" href="/"><ArrowLeft size={18}/> Tilbake til Siden sist</a>
     <header><span><CalendarDays size={25}/></span><div><h1>Tidligere øyeblikk</h1><p>Et rolig arkiv over det menneskene dine har delt.</p></div></header>
     <nav aria-label="Velg tidsperiode">{#each periods as period}<a class:active={period.id === data.period} href={`/historikk?periode=${period.id}`}>{period.label}</a>{/each}</nav>
     {#if data.posts.length}

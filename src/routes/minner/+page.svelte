@@ -1,12 +1,11 @@
 <script lang="ts">
-  import { ArrowLeft, CalendarHeart } from '@lucide/svelte';
+  import { CalendarHeart } from '@lucide/svelte';
   let { data } = $props();
 </script>
 
 <svelte:head><title>Minner – Samvio</title></svelte:head>
 
 <main class="memories-page"><div class="memories-shell">
-  <a class="back" href="/profil"><ArrowLeft size={17}/> Tilbake til profilen</a>
   <header><span><CalendarHeart size={28}/></span><div><p>På denne dagen</p><h1>{data.today.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })}</h1></div></header>
   {#if data.memories.length}
     <section class="memory-list">{#each data.memories as memory}<article><time datetime={memory.createdAt.toISOString()}>{memory.createdAt.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' })}</time>{#if memory.mediaId}<img src={`/media/${memory.mediaId}`} alt={memory.caption || 'Et tidligere øyeblikk'}/>{/if}{#if memory.caption}<p>{memory.caption}</p>{/if}</article>{/each}</section>
