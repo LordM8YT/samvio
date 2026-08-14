@@ -1,10 +1,9 @@
 <script lang="ts">
-  import { Bell, Compass, Home, Menu, MessageCircle, PlusSquare, Search, ShieldCheck, UserRound, Video } from '@lucide/svelte';
+  import { Clock3, Home, PlusSquare, Search, ShieldCheck, UserRound } from '@lucide/svelte';
   let { data } = $props();
   const navigation = [
     { slug: '', label: 'Hjem', icon: Home }, { slug: 'sok', label: 'Søk', icon: Search },
-    { slug: 'utforsk', label: 'Utforsk', icon: Compass }, { slug: 'videoer', label: 'Videoer', icon: Video },
-    { slug: 'meldinger', label: 'Meldinger', icon: MessageCircle }, { slug: 'varsler', label: 'Varsler', icon: Bell },
+    { slug: 'historikk', label: 'Historikk', icon: Clock3 },
     { slug: '?opprett=1', label: 'Opprett', icon: PlusSquare }, { slug: 'profil', label: 'Profil', icon: UserRound }
   ];
   const copy: Record<string, { title: string; intro: string; emptyTitle: string; emptyText: string }> = {
@@ -13,41 +12,54 @@
     meldinger: { title: 'Meldinger', intro: 'Private samtaler med tydelige trygghetsgrenser.', emptyTitle: 'Ingen samtaler ennå', emptyText: 'Meldinger åpnes først når sikkerhetsreglene og relasjonskontrollen er på plass.' },
     varsler: { title: 'Varsler', intro: 'Nye hendelser vises i kronologisk rekkefølge.', emptyTitle: 'Du har ingen nye varsler', emptyText: 'Her kommer forespørsler, kommentarer og andre hendelser.' }
   };
+  const infoCopy: Record<string, { title: string; intro: string; paragraphs: string[] }> = {
+    om: { title: 'Om Samvio', intro: 'Venner først. Kronologisk. En feed med en slutt.', paragraphs: ['Samvio er en norsk alpha for rolig deling av bilder mellom mennesker som aktivt har valgt hverandre.', 'Vi bygger ikke for maksimal skjermtid. Ingen anbefalingsalgoritme bestemmer rekkefølgen, og feeden stopper når du er ajour.'] },
+    personvern: { title: 'Personvern', intro: 'Alpha – sist oppdatert 14. august 2026', paragraphs: ['Samvio lagrer kontoinformasjon, innlegg, følgerelasjoner og opplastede bilder for å levere tjenesten. Vi selger ikke personopplysninger eller bruker aktivitet til målrettet reklame.', 'Alpha-kontoer bruker e-post og passord og er ikke BankID-verifiserte. Denne teksten er et foreløpig sammendrag og må gjennomgås juridisk før offentlig lansering.', 'Du kan be om innsyn, retting eller sletting via hjelpesiden.'] },
+    vilkar: { title: 'Vilkår for alpha', intro: 'Alpha – sist oppdatert 14. august 2026', paragraphs: ['Samvio er under aktiv utvikling. Funksjoner kan endres, og perioder med nedetid kan forekomme.', 'Du må være minst 13 år for å delta i alphaen. Ikke publiser ulovlig, truende eller privat materiale om andre uten samtykke.', 'Disse vilkårene er ikke endelig juridisk tekst og skal gjennomgås av menneske før offentlig lansering.'] },
+    hjelp: { title: 'Hjelp', intro: 'Vi hjelper alpha-testere direkte.', paragraphs: ['Ved problemer kan du kontakte eieren av alphaen. Ikke send passord, fødselsnummer eller BankID-opplysninger i en melding.', 'Samvio support vil aldri be deg verifisere kontoen via en tilfeldig lenke eller be om passordet ditt. Konto- og sletteforespørsler blir håndtert manuelt i alphaen.'] }
+  };
+  const pageTitle = $derived(data.section === 'profil' ? 'Profil' : data.section === 'sok' ? 'Søk' : infoCopy[data.section]?.title ?? copy[data.section]?.title ?? 'Samvio');
 </script>
 
-<svelte:head><title>{data.section === 'profil' ? 'Profil' : data.section === 'sok' ? 'Søk' : copy[data.section].title} – Samvio</title></svelte:head>
+<svelte:head><title>{pageTitle} – Samvio</title></svelte:head>
 
 <aside class="main-nav">
-  <a class="wordmark" href="/" aria-label="Samvio hjem"><span class="camera-mark"></span><span>Samvio</span></a>
+  <a class="wordmark" href="/" aria-label="Samvio hjem"><span class="brand-mark">S</span><span>Samvio</span></a>
   <nav aria-label="Hovedmeny">
     {#each navigation as item}
       <a aria-label={item.label} class:active={item.slug === data.section || (item.slug === '' && data.section === '')} href={item.slug.startsWith('?') ? `/${item.slug}` : `/${item.slug}`}><item.icon size={25}/><span>{item.label}</span></a>
     {/each}
   </nav>
-  <button class="more"><Menu size={25}/><span>Mer</span></button>
 </aside>
 
-<header class="mobile-header"><a class="wordmark" href="/">Samvio</a><div><a href="/varsler" aria-label="Varsler"><Bell size={23}/></a><a href="/meldinger" aria-label="Meldinger"><MessageCircle size={23}/></a></div></header>
+<header class="mobile-header"><a class="wordmark" href="/">Samvio</a><a href="/historikk" aria-label="Historikk"><Clock3 size={23}/></a></header>
 
 <main class="section-layout">
   <div class="section-shell">
-    {#if data.section === 'sok'}
+    {#if infoCopy[data.section]}
+      {@const info = infoCopy[data.section]}
+      <h1>{info.title}</h1><p class="section-intro">{info.intro}</p>
+      <section class="section-card info-copy">{#each info.paragraphs as paragraph}<p>{paragraph}</p>{/each}</section>
+    {:else if data.section === 'sok'}
       <h1>Søk</h1><p class="section-intro">Finn ekte, verifiserte mennesker på Samvio.</p>
       <form class="search-form" method="GET"><input name="q" value={data.query} placeholder="Søk etter navn eller brukernavn" aria-label="Søk"/><button>Søk</button></form>
       {#if data.query && data.results.length}
-        <div class="search-results">{#each data.results as person}<div class="person-row"><span><UserRound size={21}/></span><div><strong>{person.realName}</strong><small>@{person.username}</small></div></div>{/each}</div>
+        <div class="search-results">{#each data.results as person}<div class="person-row"><span><UserRound size={21}/></span><div><strong>{person.realName}</strong><small>@{person.username}</small></div><form method="POST" action={person.isFollowing ? '?/unfollow' : '?/follow'}><input type="hidden" name="targetId" value={person.userId}/><button>{person.isFollowing ? 'Slutt å følge' : 'Følg'}</button></form></div>{/each}</div>
       {:else if data.query}
         <div class="section-card section-empty"><Search size={34}/><h2>Ingen treff</h2><p>Vi fant ingen profiler som matcher «{data.query}».</p></div>
       {/if}
     {:else if data.section === 'profil'}
+      {@const user = data.user}
       <h1>Profil</h1><p class="section-intro">Din konto og medlemskap.</p>
-      <section class="section-card"><div class="profile-details"><UserRound size={42}/><p><strong>{data.user.realName}</strong><br/><span>@{data.user.username}</span></p><p>{data.user.email}</p><p><ShieldCheck size={16}/> Lokal testkonto</p></div><div class="profile-actions"><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
+      {#if user}
+        <section class="section-card"><div class="profile-details"><UserRound size={42}/><p><strong>{user.realName}</strong><br/><span>@{user.username}</span></p><p>{user.email}</p><p><ShieldCheck size={16}/> Lokal testkonto</p></div><div class="profile-actions"><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
+      {/if}
     {:else}
       {@const section = copy[data.section]}
       <h1>{section.title}</h1><p class="section-intro">{section.intro}</p>
-      <section class="section-card section-empty">{#if data.section === 'utforsk'}<Compass size={36}/>{:else if data.section === 'videoer'}<Video size={36}/>{:else if data.section === 'meldinger'}<MessageCircle size={36}/>{:else}<Bell size={36}/>{/if}<h2>{section.emptyTitle}</h2><p>{section.emptyText}</p></section>
+      <section class="section-card section-empty"><ShieldCheck size={36}/><h2>{section.emptyTitle}</h2><p>{section.emptyText}</p></section>
     {/if}
   </div>
 </main>
 
-<nav class="mobile-nav" aria-label="Mobilmeny"><a href="/" aria-label="Hjem"><Home size={24}/></a><a href="/sok" aria-label="Søk"><Search size={24}/></a><a href="/?opprett=1" aria-label="Opprett"><PlusSquare size={24}/></a><a href="/videoer" aria-label="Videoer"><Video size={24}/></a><a href="/profil" aria-label="Profil"><UserRound size={24}/></a></nav>
+<nav class="mobile-nav" aria-label="Mobilmeny"><a href="/" aria-label="Hjem"><Home size={24}/></a><a href="/sok" aria-label="Søk"><Search size={24}/></a><a href="/?opprett=1" aria-label="Opprett"><PlusSquare size={24}/></a><a href="/historikk" aria-label="Historikk"><Clock3 size={24}/></a><a href="/profil" aria-label="Profil"><UserRound size={24}/></a></nav>

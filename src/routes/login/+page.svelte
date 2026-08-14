@@ -9,7 +9,7 @@
   <section class="auth-card">
     <a class="auth-logo" href="/">Samvio</a>
     <h1>{mode === 'login' ? 'Velkommen tilbake' : 'Opprett din profil'}</h1>
-    <p>{mode === 'login' ? 'Logg inn på den lokale utviklingskontoen din.' : 'Denne lokale innloggingen erstattes av BankID før lansering.'}</p>
+    <p>{mode === 'login' ? 'Logg inn på Samvio alpha.' : 'Alpha er for inviterte testbrukere fra 13 år.'}</p>
     <div class="tabs"><button class:active={mode === 'login'} onclick={() => mode = 'login'}>Logg inn</button><button class:active={mode === 'register'} onclick={() => mode = 'register'}>Ny konto</button></div>
     {#if form?.message}<div class="form-error" role="alert">{form.message}</div>{/if}
     <form method="POST" action={mode === 'login' ? '?/login' : '?/register'}>
@@ -22,7 +22,7 @@
       <label>Passord<input name="password" type="password" autocomplete={mode === 'login' ? 'current-password' : 'new-password'} required minlength="8"/></label>
       <button class="submit">{mode === 'login' ? 'Logg inn' : 'Opprett konto'}</button>
     </form>
-    <div class="dev-notice"><span class="notice-icon"><ShieldCheck size={18}/></span><span><strong>Kun for lokal utvikling</strong> BankID-verifisering kobles inn før offentlig testing.</span></div>
+    <div class="dev-notice"><span class="notice-icon"><ShieldCheck size={18}/></span><span><strong>Alpha-konto</strong> Kontoen er ikke BankID-verifisert. Ikke del sensitive personopplysninger.</span></div>
   </section>
 </main>
 

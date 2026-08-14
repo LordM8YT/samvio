@@ -4,6 +4,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { follows, postMedia, posts, profiles, userFeedState } from '$lib/server/db/schema';
 import { removeUpload, saveUpload } from '$lib/server/storage';
+import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -52,8 +53,10 @@ export const actions: Actions = {
       .onDuplicateKeyUpdate({ set: { caughtUpAt } });
     return { caughtUp: true };
   },
-  createPost: async ({ request, locals }) => {
+  createPost: async ({ request, locals, getClientAddress }) => {
     if (!locals.user) redirect(303, '/login');
+    const rate = consumeRateLimit(`post:${locals.user.id}:${getClientAddress()}`, 10, 10 * 60_000);
+    if (!rate.allowed) return fail(429, { postError: 'Du deler litt for raskt. Vent noen minutter.' });
     const form = await request.formData();
     const file = form.get('image');
     const captionValue = form.get('caption');
