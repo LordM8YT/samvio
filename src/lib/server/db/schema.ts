@@ -10,8 +10,9 @@ export const users = mysqlTable('users', {
   email: varchar('email', { length: 254 }).notNull(),
   passwordHash: varchar('password_hash', { length: 255 }),
   accountStatus: mysqlEnum('account_status', ['pending', 'active', 'suspended', 'deleted']).notNull().default('pending'),
+  accountRole: mysqlEnum('account_role', ['user', 'moderator', 'admin']).notNull().default('user'),
   ...timestamps
-}, (t) => [uniqueIndex('uq_users_email').on(t.email)]);
+}, (t) => [uniqueIndex('uq_users_email').on(t.email), index('idx_users_account_role').on(t.accountRole)]);
 
 export const profiles = mysqlTable('profiles', {
   userId: char('user_id', { length: 36 }).primaryKey().references(() => users.id, { onDelete: 'cascade' }),

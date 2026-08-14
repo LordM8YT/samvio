@@ -15,7 +15,7 @@ export async function createSession(userId: string) {
 }
 
 export async function getSessionUser(token: string) {
-  const [row] = await db.select({ id: users.id, email: users.email, username: profiles.username, realName: profiles.realName })
+  const [row] = await db.select({ id: users.id, email: users.email, username: profiles.username, realName: profiles.realName, role: users.accountRole })
     .from(sessions).innerJoin(users, eq(sessions.userId, users.id)).leftJoin(profiles, eq(profiles.userId, users.id))
     .where(and(eq(sessions.id, hashToken(token)), gt(sessions.expiresAt, new Date()))).limit(1);
   return row ?? null;

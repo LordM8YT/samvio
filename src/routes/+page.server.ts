@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, desc, eq, gt, inArray, lte, or } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, postMedia, postReactions, posts, profiles, userFeedState } from '$lib/server/db/schema';
+import { follows, postMedia, postReactions, posts, profiles, userFeedState, users } from '$lib/server/db/schema';
 import { removeUpload, saveUpload } from '$lib/server/storage';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
@@ -30,9 +30,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       createdAt: posts.createdAt,
       authorName: profiles.realName,
       authorUsername: profiles.username,
+      authorRole: users.accountRole,
       mediaId: postMedia.id
     }).from(posts)
       .innerJoin(profiles, eq(profiles.userId, posts.authorId))
+      .innerJoin(users, eq(users.id, posts.authorId))
       .leftJoin(postMedia, eq(postMedia.postId, posts.id))
       .where(feedFilter)
       .orderBy(desc(posts.createdAt), desc(posts.id)).limit(500);
