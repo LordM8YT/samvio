@@ -13,7 +13,7 @@
     vilkar: { title: 'Vilkår for alpha', intro: 'Alpha – sist oppdatert 14. august 2026', paragraphs: ['Samvio er under aktiv utvikling. Funksjoner kan endres, og perioder med nedetid kan forekomme.', 'Du må være minst 13 år for å delta i alphaen. Ikke publiser ulovlig, truende eller privat materiale om andre uten samtykke.', 'Disse vilkårene er ikke endelig juridisk tekst og skal gjennomgås av menneske før offentlig lansering.'] },
     hjelp: { title: 'Hjelp', intro: 'Vi hjelper alpha-testere direkte.', paragraphs: ['Ved problemer kan du kontakte eieren av alphaen. Ikke send passord, fødselsnummer eller BankID-opplysninger i en melding.', 'Samvio support vil aldri be deg verifisere kontoen via en tilfeldig lenke eller be om passordet ditt. Konto- og sletteforespørsler blir håndtert manuelt i alphaen.'] }
   };
-  const pageTitle = $derived(data.section === 'profil' ? 'Profil' : data.section === 'sok' ? 'Søk' : infoCopy[data.section]?.title ?? copy[data.section]?.title ?? 'Samvio');
+  const pageTitle = $derived(data.section === 'innstillinger' ? 'Innstillinger' : data.section === 'sok' ? 'Søk' : infoCopy[data.section]?.title ?? copy[data.section]?.title ?? 'Samvio');
 </script>
 
 <svelte:head><title>{pageTitle} – Samvio</title></svelte:head>
@@ -32,12 +32,14 @@
       {:else if data.query}
         <div class="section-card section-empty"><Search size={34}/><h2>Ingen treff</h2><p>Vi fant ingen profiler som matcher «{data.query}».</p></div>
       {/if}
-    {:else if data.section === 'profil'}
+    {:else if data.section === 'innstillinger'}
       {@const user = data.user}
-      <h1>Profil</h1><p class="section-intro">Din konto og medlemskap.</p>
+      <h1>Innstillinger</h1><p class="section-intro">Administrer profil, konto og medlemskap.</p>
       {#if user}
-        <section class="section-card"><div class="profile-details"><UserRound size={42}/><p><strong>{user.realName}</strong><br/><span>@{user.username}</span></p><p>{user.email}</p><p><ShieldCheck size={16}/> Alpha-konto med e-post</p></div><div class="profile-actions"><a href={`/bruker/${user.username}`}>Se din tidslinje</a><a href="/minner">Minner på denne dagen</a><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
-        <section class="section-card account-settings"><h2>Profiltekst</h2><form method="POST" action="?/updateProfile"><textarea name="bio" maxlength="300" rows="4" placeholder="Fortell kort hvem du er …">{data.profileBio ?? ''}</textarea><button>Lagre profiltekst</button></form>{#if form?.profileError}<p class="form-error">{form.profileError}</p>{:else if form?.profileSaved}<p class="form-success">Profilen er lagret.</p>{/if}</section>
+        <nav class="settings-nav" aria-label="Innstillingskategorier"><a href="#profil">Profil</a><a href="#konto">Konto</a><a href="#personvern">Personvern</a></nav>
+        <section id="profil" class="section-card account-settings"><h2>Profil</h2><p class="settings-help">Dette vises på profilsiden din.</p><form method="POST" action="?/updateProfile" enctype="multipart/form-data"><div class="image-fields"><label>Profilbilde<span>{data.profileImages.avatar ? 'Bytt bilde' : 'Velg bilde'}</span><input name="avatar" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"/></label><label>Forsidebilde<span>{data.profileImages.cover ? 'Bytt bilde' : 'Velg bilde'}</span><input name="cover" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"/></label></div><label class="bio-label">Om deg<textarea name="bio" maxlength="300" rows="4" placeholder="Fortell kort hvem du er …">{data.profileBio ?? ''}</textarea></label><button>Lagre profil</button></form>{#if form?.profileError}<p class="form-error">{form.profileError}</p>{:else if form?.profileSaved}<p class="form-success">Profilen er lagret.</p>{/if}<a class="view-profile" href={`/bruker/${user.username}`}>Se profilen din</a></section>
+        <section id="konto" class="section-card"><h2>Konto og medlemskap</h2><div class="profile-details"><p><strong>{user.realName}</strong><br/><span>@{user.username}</span></p><p>{user.email}</p><p><ShieldCheck size={16}/> Alpha-konto med e-post</p></div><div class="profile-actions"><a href="/minner">Minner på denne dagen</a><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
+        <section id="personvern" class="section-card"><h2>Personvern og trygghet</h2><p class="settings-help">Innlegg deles bare med aksepterte følgere. Flere valg for synlighet, varsler og blokkering kommer før beta.</p></section>
         <details class="section-card danger-zone"><summary>Slett konto og innhold</summary><p>Dette sletter kontoen, følgerelasjoner, innlegg og opplastede bilder permanent.</p><form method="POST" action="?/deleteAccount"><label>Skriv SLETT for å bekrefte<input name="confirmation" autocomplete="off" required/></label><button>Slett kontoen permanent</button></form>{#if form?.deleteError}<p class="form-error">{form.deleteError}</p>{/if}</details>
       {/if}
     {:else}

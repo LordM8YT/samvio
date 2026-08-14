@@ -1,17 +1,19 @@
+import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, like, ne, or } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { follows, postMedia, posts, profiles, users } from '$lib/server/db/schema';
 import { deleteSession, SESSION_COOKIE } from '$lib/server/auth';
-import { removeUpload } from '$lib/server/storage';
+import { removeUpload, saveUpload } from '$lib/server/storage';
 import type { Actions, PageServerLoad } from './$types';
 
 const publicSections = new Set(['om', 'personvern', 'vilkar', 'hjelp']);
-const sections = new Set(['sok', 'utforsk', 'videoer', 'meldinger', 'varsler', 'profil', ...publicSections]);
+const sections = new Set(['sok', 'utforsk', 'videoer', 'meldinger', 'varsler', 'profil', 'innstillinger', ...publicSections]);
 
 export const load: PageServerLoad = async ({ params, url, locals }) => {
   if (!sections.has(params.section)) error(404, 'Siden finnes ikke');
   if (!locals.user && !publicSections.has(params.section)) redirect(303, `/login?next=/${params.section}`);
+  if (params.section === 'profil' && locals.user) redirect(303, `/bruker/${locals.user.username}`);
 
   const query = url.searchParams.get('q')?.trim().slice(0, 60) ?? '';
   let results: Array<{ userId: string; realName: string; username: string; followStatus: 'pending' | 'accepted' | 'blocked' | null }> = [];
@@ -28,22 +30,38 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   }
 
   let profileBio: string | null = null;
-  if (params.section === 'profil' && locals.user) {
-    const [profile] = await db.select({ bio: profiles.bio }).from(profiles).where(eq(profiles.userId, locals.user.id)).limit(1);
+  let profileImages = { avatar: false, cover: false };
+  if (params.section === 'innstillinger' && locals.user) {
+    const [profile] = await db.select({ bio: profiles.bio, avatarPath: profiles.avatarPath, coverPath: profiles.coverPath }).from(profiles).where(eq(profiles.userId, locals.user.id)).limit(1);
     profileBio = profile?.bio ?? null;
+    profileImages = { avatar: !!profile?.avatarPath, cover: !!profile?.coverPath };
   }
 
-  return { section: params.section, user: locals.user, query, results, profileBio };
+  return { section: params.section, user: locals.user, query, results, profileBio, profileImages };
 };
 
 export const actions: Actions = {
   updateProfile: async ({ request, locals }) => {
     if (!locals.user) redirect(303, '/login');
-    const bioValue = (await request.formData()).get('bio');
+    const form = await request.formData();
+    const bioValue = form.get('bio');
     if (typeof bioValue !== 'string') return fail(400, { profileError: 'Ugyldig profiltekst.' });
     const bio = bioValue.trim();
     if (bio.length > 300) return fail(400, { profileError: 'Profilteksten kan være maks 300 tegn.' });
-    await db.update(profiles).set({ bio: bio || null }).where(eq(profiles.userId, locals.user.id));
+    const [current] = await db.select({ avatarPath: profiles.avatarPath, coverPath: profiles.coverPath }).from(profiles).where(eq(profiles.userId, locals.user.id)).limit(1);
+    const allowedTypes = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']]);
+    const uploads: Array<{ field: 'avatarPath' | 'coverPath'; file: File; oldPath: string | null; storageKey: string }> = [];
+    for (const [name, field, oldPath] of [['avatar', 'avatarPath', current?.avatarPath], ['cover', 'coverPath', current?.coverPath]] as const) {
+      const file = form.get(name);
+      if (!(file instanceof File) || file.size === 0) continue;
+      const extension = allowedTypes.get(file.type);
+      if (!extension || file.size > 10 * 1024 * 1024) return fail(400, { profileError: 'Bruk JPG, PNG eller WebP på maks 10 MB.' });
+      uploads.push({ field, file, oldPath: oldPath ?? null, storageKey: `${randomUUID()}.${extension}` });
+    }
+    await Promise.all(uploads.map(async (item) => saveUpload(item.storageKey, new Uint8Array(await item.file.arrayBuffer()))));
+    const imageValues = Object.fromEntries(uploads.map((item) => [item.field, item.storageKey]));
+    await db.update(profiles).set({ bio: bio || null, ...imageValues }).where(eq(profiles.userId, locals.user.id));
+    await Promise.allSettled(uploads.flatMap((item) => item.oldPath ? [removeUpload(item.oldPath)] : []));
     return { profileSaved: true };
   },
   deleteAccount: async ({ request, locals, cookies }) => {

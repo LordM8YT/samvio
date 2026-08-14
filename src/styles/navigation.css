@@ -120,6 +120,17 @@
 .danger-zone p { color: #696969; font-size: 13px; }
 .danger-zone label { display: grid; gap: 6px; font-size: 12px; font-weight: 700; }
 .danger-zone button { width: max-content; padding: 9px 14px; border: 1px solid #a13e32; border-radius: 8px; background: #fff; color: #a13e32; font-weight: 700; }
+.settings-nav { position: sticky; top: 14px; z-index: 2; display: flex; gap: 8px; margin-bottom: 16px; padding: 7px; border: 1px solid #dedbd3; border-radius: 12px; background: #fffdfaeF; backdrop-filter: blur(12px); }
+.settings-nav a { padding: 8px 12px; border-radius: 8px; color: #315d49; font-size: 12px; font-weight: 700; }
+.settings-nav a:hover { background: #edf3ef; }
+.settings-help { margin: -5px 0 18px; color: #6d716e; font-size: 13px; line-height: 1.55; }
+.image-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.image-fields label { display: grid; gap: 7px; padding: 14px; border: 1px dashed #b9c4bd; border-radius: 10px; background: #f7faf8; font-size: 13px; font-weight: 700; }
+.image-fields label span { color: #315d49; font-size: 11px; }
+.image-fields input { max-width: 100%; font-size: 11px; }
+.bio-label { display: grid; gap: 7px; font-size: 13px; font-weight: 700; }
+.view-profile { display: inline-block; margin-top: 16px; color: #315d49; font-size: 13px; font-weight: 700; }
+@media(max-width:560px){.image-fields{grid-template-columns:1fr}.settings-nav{top:calc(58px + env(safe-area-inset-top));overflow-x:auto}}
 
 .main-nav{background:linear-gradient(180deg,#fff 0%,#fffdfa 68%,#f2f7f4 100%)}
 .main-nav nav a{transition:background .16s ease,color .16s ease,transform .16s ease}

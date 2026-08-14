@@ -20,6 +20,7 @@ export const profiles = mysqlTable('profiles', {
   username: varchar('username', { length: 30 }).notNull(),
   bio: varchar('bio', { length: 300 }),
   avatarPath: varchar('avatar_path', { length: 500 }),
+  coverPath: varchar('cover_path', { length: 500 }),
   ageBand: mysqlEnum('age_band', ['child', 'teen', 'adult']).notNull(),
   isIdentityVerified: boolean('is_identity_verified').notNull().default(false),
   ...timestamps
