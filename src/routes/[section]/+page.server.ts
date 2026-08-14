@@ -14,17 +14,17 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   if (!locals.user && !publicSections.has(params.section)) redirect(303, `/login?next=/${params.section}`);
 
   const query = url.searchParams.get('q')?.trim().slice(0, 60) ?? '';
-  let results: Array<{ userId: string; realName: string; username: string; isFollowing: boolean }> = [];
+  let results: Array<{ userId: string; realName: string; username: string; followStatus: 'pending' | 'accepted' | 'blocked' | null }> = [];
   if (params.section === 'sok' && query) {
     const matches = await db.select({ userId: profiles.userId, realName: profiles.realName, username: profiles.username })
       .from(profiles)
       .where(and(ne(profiles.userId, locals.user!.id), or(like(profiles.username, `%${query}%`), like(profiles.realName, `%${query}%`))))
       .limit(20);
-    const followedIds = matches.length
-      ? await db.select({ id: follows.followedId }).from(follows).where(and(eq(follows.followerId, locals.user!.id), inArray(follows.followedId, matches.map((match) => match.userId)), eq(follows.status, 'accepted')))
+    const relations = matches.length
+      ? await db.select({ id: follows.followedId, status: follows.status }).from(follows).where(and(eq(follows.followerId, locals.user!.id), inArray(follows.followedId, matches.map((match) => match.userId))))
       : [];
-    const following = new Set(followedIds.map((row) => row.id));
-    results = matches.map((match) => ({ ...match, isFollowing: following.has(match.userId) }));
+    const relationByUser = new Map(relations.map((row) => [row.id, row.status]));
+    results = matches.map((match) => ({ ...match, followStatus: relationByUser.get(match.userId) ?? null }));
   }
 
   let profileBio: string | null = null;
@@ -63,6 +63,10 @@ export const actions: Actions = {
     if (typeof targetId !== 'string' || targetId === locals.user.id) return fail(400, { followError: 'Ugyldig profil.' });
     const [target] = await db.select({ id: profiles.userId }).from(profiles).where(eq(profiles.userId, targetId)).limit(1);
     if (!target) return fail(404, { followError: 'Profilen finnes ikke.' });
+    const [existing] = await db.select({ status: follows.status }).from(follows)
+      .where(and(eq(follows.followerId, locals.user.id), eq(follows.followedId, targetId))).limit(1);
+    if (existing?.status === 'blocked') return fail(403, { followError: 'Denne profilen kan ikke følges.' });
+    if (existing?.status === 'pending') return { requestedId: targetId };
     await db.insert(follows).values({ followerId: locals.user.id, followedId: targetId, status: 'accepted' })
       .onDuplicateKeyUpdate({ set: { status: 'accepted' } });
     return { followedId: targetId };
@@ -71,7 +75,7 @@ export const actions: Actions = {
     if (!locals.user) redirect(303, '/login');
     const targetId = (await request.formData()).get('targetId');
     if (typeof targetId !== 'string') return fail(400, { followError: 'Ugyldig profil.' });
-    await db.delete(follows).where(and(eq(follows.followerId, locals.user.id), eq(follows.followedId, targetId)));
+    await db.delete(follows).where(and(eq(follows.followerId, locals.user.id), eq(follows.followedId, targetId), ne(follows.status, 'blocked')));
     return { unfollowedId: targetId };
   },
   logout: async ({ cookies }) => {
