@@ -8,7 +8,7 @@ User=samvio
 Group=samvio
 WorkingDirectory=/opt/samvio/app
 EnvironmentFile=/etc/samvio/samvio.env
-Environment=BODY_SIZE_LIMIT=12M
+Environment=BODY_SIZE_LIMIT=30M
 Environment=SHUTDOWN_TIMEOUT=5
 ExecStart=/usr/bin/node build
 Restart=on-failure
