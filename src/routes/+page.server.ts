@@ -7,7 +7,7 @@ import { removeUpload, saveUpload } from '$lib/server/storage';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
 const allowedTypes = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']]);
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -68,7 +68,7 @@ export const actions: Actions = {
     const caption = typeof captionValue === 'string' ? captionValue.trim().slice(0, 2200) : '';
     if (!(file instanceof File) || file.size === 0) return fail(400, { postError: 'Velg et bilde.' });
     const extension = allowedTypes.get(file.type);
-    if (!extension || file.size > MAX_IMAGE_BYTES) return fail(400, { postError: 'Bruk JPG, PNG eller WebP på maks 10 MB.' });
+    if (!extension || file.size > MAX_IMAGE_BYTES) return fail(400, { postError: 'Bruk JPG, PNG eller WebP på maks 25 MB.' });
 
     const postId = randomUUID();
     const mediaId = randomUUID();

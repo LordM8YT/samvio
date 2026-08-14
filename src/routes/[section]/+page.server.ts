@@ -55,7 +55,7 @@ export const actions: Actions = {
       const file = form.get(name);
       if (!(file instanceof File) || file.size === 0) continue;
       const extension = allowedTypes.get(file.type);
-      if (!extension || file.size > 10 * 1024 * 1024) return fail(400, { profileError: 'Bruk JPG, PNG eller WebP på maks 10 MB.' });
+      if (!extension || file.size > 25 * 1024 * 1024) return fail(400, { profileError: 'Bruk JPG, PNG eller WebP på maks 25 MB.' });
       uploads.push({ field, file, oldPath: oldPath ?? null, storageKey: `${randomUUID()}.${extension}` });
     }
     await Promise.all(uploads.map(async (item) => saveUpload(item.storageKey, new Uint8Array(await item.file.arrayBuffer()))));

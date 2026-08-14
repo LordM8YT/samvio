@@ -14,7 +14,7 @@
     selectedFileName = file?.name ?? '';
     uploadError = !file ? '' : !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
       ? 'Velg et bilde i JPG-, PNG- eller WebP-format.'
-      : file.size > 10 * 1024 * 1024 ? 'Bildet kan være maks 10 MB.' : '';
+      : file.size > 25 * 1024 * 1024 ? 'Bildet kan være maks 25 MB.' : '';
   }
   function observeFeedEnd(node: HTMLElement) {
     const observer = new IntersectionObserver(async ([entry]) => {
