@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     .innerJoin(profiles, eq(profiles.userId, posts.authorId))
     .innerJoin(users, eq(users.id, posts.authorId))
     .leftJoin(postMedia, eq(postMedia.postId, posts.id))
-    .where(timeFilter ? and(audience, timeFilter) : audience)
+    .where(timeFilter ? and(audience, eq(posts.moderationStatus, 'visible'), timeFilter) : and(audience, eq(posts.moderationStatus, 'visible')))
     .orderBy(desc(posts.createdAt), desc(posts.id)).limit(PAGE_SIZE + 1);
   const hasMore = rows.length > PAGE_SIZE;
   const page = rows.slice(0, PAGE_SIZE);

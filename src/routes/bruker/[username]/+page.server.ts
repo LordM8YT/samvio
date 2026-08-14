@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     .where(and(eq(follows.followerId, locals.user.id), eq(follows.followedId, profile.userId))).limit(1);
   const canSeePosts = isOwnProfile || relation?.status === 'accepted';
   const moments = canSeePosts ? await db.select({ id: posts.id, caption: posts.caption, createdAt: posts.createdAt, mediaId: postMedia.id })
-    .from(posts).leftJoin(postMedia, eq(postMedia.postId, posts.id)).where(eq(posts.authorId, profile.userId))
+    .from(posts).leftJoin(postMedia, eq(postMedia.postId, posts.id)).where(and(eq(posts.authorId, profile.userId), eq(posts.moderationStatus, 'visible')))
     .orderBy(desc(posts.createdAt), desc(posts.id)).limit(100) : [];
   const likedRows = moments.length ? await db.select({ postId: postReactions.postId }).from(postReactions)
     .where(and(eq(postReactions.userId, locals.user.id), inArray(postReactions.postId, moments.map((moment) => moment.id)))) : [];

@@ -1,13 +1,14 @@
 <script lang="ts">
-  import { Clock3, Home, PlusSquare, Search, UserRound } from '@lucide/svelte';
+  import { Clock3, Home, PlusSquare, Search, ShieldCheck, UserRound } from '@lucide/svelte';
   import { page } from '$app/state';
-  let { children } = $props();
+  let { children, user } = $props();
   const items = [
     { href: '/', label: 'Hjem', icon: Home },
     { href: '/sok', label: 'Søk', icon: Search },
     { href: '/historikk', label: 'Historikk', icon: Clock3 },
     { href: '/?opprett=1', label: 'Opprett', icon: PlusSquare },
-    { href: '/profil', label: 'Profil', icon: UserRound }
+    { href: '/profil', label: 'Profil', icon: UserRound },
+    ...(user?.role === 'admin' ? [{ href: '/admin', label: 'Admin', icon: ShieldCheck }] : [])
   ];
   const active = (href: string) => href === '/' ? page.url.pathname === '/' : href.startsWith('/?') ? false : page.url.pathname.startsWith(href);
 </script>

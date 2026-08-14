@@ -22,8 +22,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       .where(and(eq(follows.followerId, locals.user.id), eq(follows.status, 'accepted')));
     const audience = or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers))!;
     const feedFilter = state?.caughtUpAt
-      ? and(audience, gt(posts.createdAt, state.caughtUpAt), lte(posts.createdAt, feedWindowEnd))
-      : and(audience, lte(posts.createdAt, feedWindowEnd));
+      ? and(audience, eq(posts.moderationStatus, 'visible'), gt(posts.createdAt, state.caughtUpAt), lte(posts.createdAt, feedWindowEnd))
+      : and(audience, eq(posts.moderationStatus, 'visible'), lte(posts.createdAt, feedWindowEnd));
     const rows = await db.select({
       id: posts.id,
       caption: posts.caption,
@@ -60,6 +60,8 @@ export const actions: Actions = {
   },
   createPost: async ({ request, locals, getClientAddress }) => {
     if (!locals.user) redirect(303, '/login');
+    const [account] = await db.select({ mutedUntil: users.mutedUntil }).from(users).where(eq(users.id, locals.user.id)).limit(1);
+    if (account?.mutedUntil && account.mutedUntil > new Date()) return fail(403, { postError: 'Kontoen er midlertidig dempet og kan ikke publisere.' });
     const rate = consumeRateLimit(`post:${locals.user.id}:${getClientAddress()}`, 10, 10 * 60_000);
     if (!rate.allowed) return fail(429, { postError: 'Du deler litt for raskt. Vent noen minutter.' });
     const form = await request.formData();

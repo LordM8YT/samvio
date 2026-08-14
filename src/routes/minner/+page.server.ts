@@ -11,6 +11,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     .from(posts).leftJoin(postMedia, eq(postMedia.postId, posts.id))
     .where(and(
       eq(posts.authorId, locals.user.id),
+      eq(posts.moderationStatus, 'visible'),
       sql`MONTH(${posts.createdAt}) = ${today.getMonth() + 1}`,
       sql`DAY(${posts.createdAt}) = ${today.getDate()}`,
       sql`YEAR(${posts.createdAt}) < ${today.getFullYear()}`
