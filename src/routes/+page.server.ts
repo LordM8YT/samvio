@@ -1,10 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { mkdir, unlink, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, lte, or } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, postMedia, posts, profiles } from '$lib/server/db/schema';
+import { follows, postMedia, posts, profiles, userFeedState } from '$lib/server/db/schema';
+import { removeUpload, saveUpload } from '$lib/server/storage';
 import type { Actions, PageServerLoad } from './$types';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -12,11 +11,18 @@ const allowedTypes = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['ima
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   const openComposer = url.searchParams.get('opprett') === '1';
-  if (!locals.user) return { user: null, posts: [], openComposer };
+  if (!locals.user) return { user: null, posts: [], openComposer, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0 };
 
   try {
+    const feedWindowEnd = new Date();
+    const [state] = await db.select({ caughtUpAt: userFeedState.caughtUpAt }).from(userFeedState)
+      .where(eq(userFeedState.userId, locals.user.id)).limit(1);
     const followedUsers = db.select({ id: follows.followedId }).from(follows)
       .where(and(eq(follows.followerId, locals.user.id), eq(follows.status, 'accepted')));
+    const audience = or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers))!;
+    const feedFilter = state?.caughtUpAt
+      ? and(audience, gt(posts.createdAt, state.caughtUpAt), lte(posts.createdAt, feedWindowEnd))
+      : and(audience, lte(posts.createdAt, feedWindowEnd));
     const rows = await db.select({
       id: posts.id,
       caption: posts.caption,
@@ -27,15 +33,25 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     }).from(posts)
       .innerJoin(profiles, eq(profiles.userId, posts.authorId))
       .leftJoin(postMedia, eq(postMedia.postId, posts.id))
-      .where(or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers)))
-      .orderBy(desc(posts.createdAt), desc(posts.id)).limit(30);
-    return { user: locals.user, posts: rows, openComposer };
+      .where(feedFilter)
+      .orderBy(desc(posts.createdAt), desc(posts.id)).limit(500);
+    const peopleCount = new Set(rows.map((post) => post.authorUsername)).size;
+    return { user: locals.user, posts: rows, openComposer, caughtUpAt: state?.caughtUpAt ?? null, feedWindowEnd: rows.length < 500 ? feedWindowEnd : null, peopleCount };
   } catch {
-    return { user: locals.user, posts: [], openComposer };
+    return { user: locals.user, posts: [], openComposer, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0, feedError: true };
   }
 };
 
 export const actions: Actions = {
+  markCaughtUp: async ({ request, locals }) => {
+    if (!locals.user) return fail(401, { feedError: 'Logg inn for å oppdatere feeden.' });
+    const value = (await request.formData()).get('feedWindowEnd');
+    const caughtUpAt = typeof value === 'string' ? new Date(value) : new Date('invalid');
+    if (Number.isNaN(caughtUpAt.getTime()) || caughtUpAt.getTime() > Date.now() + 60_000) return fail(400, { feedError: 'Ugyldig feed-markør.' });
+    await db.insert(userFeedState).values({ userId: locals.user.id, caughtUpAt })
+      .onDuplicateKeyUpdate({ set: { caughtUpAt } });
+    return { caughtUp: true };
+  },
   createPost: async ({ request, locals }) => {
     if (!locals.user) redirect(303, '/login');
     const form = await request.formData();
@@ -49,9 +65,7 @@ export const actions: Actions = {
     const postId = randomUUID();
     const mediaId = randomUUID();
     const storageKey = `${mediaId}.${extension}`;
-    const uploadDir = path.resolve('uploads');
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(path.join(uploadDir, storageKey), Buffer.from(await file.arrayBuffer()), { flag: 'wx' });
+    await saveUpload(storageKey, new Uint8Array(await file.arrayBuffer()));
 
     try {
       await db.transaction(async (tx) => {
@@ -59,7 +73,7 @@ export const actions: Actions = {
         await tx.insert(postMedia).values({ id: mediaId, postId, mediaType: 'image', storageKey });
       });
     } catch {
-      await unlink(path.join(uploadDir, storageKey)).catch(() => undefined);
+      await removeUpload(storageKey);
       return fail(503, { postError: 'Innlegget kunne ikke lagres.' });
     }
     redirect(303, '/');

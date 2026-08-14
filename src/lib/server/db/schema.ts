@@ -31,6 +31,12 @@ export const sessions = mysqlTable('sessions', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow()
 }, (t) => [index('idx_sessions_user_id').on(t.userId)]);
 
+export const userFeedState = mysqlTable('user_feed_state', {
+  userId: char('user_id', { length: 36 }).primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  caughtUpAt: timestamp('caught_up_at', { mode: 'date', fsp: 6 }),
+  ...timestamps
+});
+
 export const follows = mysqlTable('follows', {
   followerId: char('follower_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   followedId: char('followed_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),

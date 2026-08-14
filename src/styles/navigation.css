@@ -4,6 +4,37 @@
   text-decoration: none;
 }
 
+.samvio-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 244px minmax(470px, 630px) 320px;
+  justify-content: center;
+  gap: 42px;
+  padding-left: 244px;
+}
+
+.brand-mark {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px 4px 9px 4px;
+  background: #315d49;
+  color: #fff;
+  font: 700 15px/1 'DM Sans', sans-serif;
+  transform: rotate(-4deg);
+}
+
+.feed-end {
+  justify-content: flex-start;
+  padding: 22px 4px 36px;
+  border-top: 1px solid #efefef;
+}
+
+.feed-end > div { display: grid; gap: 2px; }
+.feed-end strong { color: #315d49; font-size: 12px; }
+.feed-end a { margin-left: auto; color: #315d49; font-weight: 700; }
+
 .main-nav nav a {
   display: flex;
   align-items: center;
@@ -59,10 +90,17 @@
 .profile-actions button { background: #fff; color: #222; border: 1px solid #cfcfcf; }
 
 @media (max-width: 1160px) {
+  .samvio-shell { grid-template-columns: 74px minmax(470px,630px) 290px; padding-left: 74px; gap: 30px; }
   .main-nav nav a span { display: none; }
 }
 
+@media (max-width: 920px) {
+  .samvio-shell { grid-template-columns: minmax(470px,630px); padding-left: 74px; }
+}
+
 @media (max-width: 700px) {
+  .samvio-shell { display: block; padding: 0; }
   .section-layout { margin-left: 0; padding: 76px 15px 74px; }
   .search-form { flex-direction: column; }
+  .feed-end { padding: 20px 15px 32px; }
 }
