@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { follows, postMedia, postReactions, posts, profiles, users } from '$lib/server/db/schema';
@@ -21,8 +21,13 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     .where(and(eq(postReactions.userId, locals.user.id), inArray(postReactions.postId, moments.map((moment) => moment.id)))) : [];
   const likedIds = new Set(likedRows.map((row) => row.postId));
   const profilePosts = moments.map((moment) => ({ ...moment, authorName: profile.realName, authorUsername: profile.username, authorRole: profile.role, liked: likedIds.has(moment.id) }));
+  const [[postCount], [followerCount], [followingCount]] = await Promise.all([
+    db.select({ value: count() }).from(posts).where(eq(posts.authorId, profile.userId)),
+    db.select({ value: count() }).from(follows).where(and(eq(follows.followedId, profile.userId), eq(follows.status, 'accepted'))),
+    db.select({ value: count() }).from(follows).where(and(eq(follows.followerId, profile.userId), eq(follows.status, 'accepted')))
+  ]);
 
-  return { profile, isOwnProfile, followStatus: relation?.status ?? null, canSeePosts, moments: profilePosts };
+  return { profile, isOwnProfile, followStatus: relation?.status ?? null, canSeePosts, moments: profilePosts, stats: { posts: postCount.value, followers: followerCount.value, following: followingCount.value } };
 };
 
 export const actions: Actions = {

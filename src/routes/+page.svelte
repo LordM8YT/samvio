@@ -33,6 +33,7 @@
 
 <div class="samvio-shell">
   <main class="feed-column">
+    {#if data.user}<section class="quick-share"><div class="quick-avatar"><UserRound size={20}/></div><button onclick={() => composerOpen = true}>Del et bilde eller øyeblikk …</button><PlusSquare size={20}/></section>{/if}
     <section class="feed-label"><div><h1>Siden sist</h1><span><i></i>Kronologisk · Ingen anbefalinger</span></div><p>{data.posts.length} nye øyeblikk fra {data.peopleCount} {data.peopleCount === 1 ? 'person' : 'personer'}.</p></section>
 
     {#if data.posts.length}
@@ -58,3 +59,7 @@
     </div>
   </div>
 {/if}
+
+<style>
+  .quick-share{display:flex;align-items:center;gap:11px;margin:8px 0 14px;padding:12px;border:1px solid #ddd7cc;border-radius:14px;background:linear-gradient(120deg,#fff,#f7f1e7);box-shadow:0 8px 25px #26382f0a}.quick-avatar{width:38px;height:38px;display:grid;place-items:center;flex:none;border-radius:50%;background:#e7f0eb;color:#315d49}.quick-share button{flex:1;padding:11px 14px;border:1px solid #e0ddd5;border-radius:999px;background:#fff;color:#747874;text-align:left}.quick-share>svg{color:#b76538}@media(max-width:700px){.quick-share{margin:0;padding:10px 14px;border-width:0 0 1px;border-radius:0;box-shadow:none}.quick-share>svg{display:none}}
+</style>
