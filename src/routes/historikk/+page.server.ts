@@ -32,7 +32,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
         ? and(lt(posts.createdAt, new Date()), gt(posts.createdAt, start))
         : undefined;
   const rows = await db.select({
-    id: posts.id, caption: posts.caption, createdAt: posts.createdAt,
+    id: posts.id, caption: posts.caption, createdAt: posts.createdAt, isCommercial: posts.isCommercial, sponsorName: posts.sponsorName,
     authorName: profiles.realName, authorUsername: profiles.username, authorRole: users.accountRole, mediaId: postMedia.id
   }).from(posts)
     .innerJoin(profiles, eq(profiles.userId, posts.authorId))

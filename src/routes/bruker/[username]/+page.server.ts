@@ -1,7 +1,7 @@
-import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, or } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, postMedia, postReactions, posts, profiles, users } from '$lib/server/db/schema';
+import { follows, postMedia, postReactions, posts, profiles, userBlocks, users } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -11,10 +11,14 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   if (!profile) error(404, 'Profilen finnes ikke');
 
   const isOwnProfile = profile.userId === locals.user.id;
+  const [block] = isOwnProfile ? [] : await db.select({ blockerId: userBlocks.blockerId }).from(userBlocks)
+    .where(or(and(eq(userBlocks.blockerId, locals.user.id), eq(userBlocks.blockedId, profile.userId)), and(eq(userBlocks.blockerId, profile.userId), eq(userBlocks.blockedId, locals.user.id)))).limit(1);
+  if (block?.blockerId === profile.userId) error(404, 'Profilen finnes ikke');
+  const isBlocked = block?.blockerId === locals.user.id;
   const [relation] = isOwnProfile ? [] : await db.select({ status: follows.status }).from(follows)
     .where(and(eq(follows.followerId, locals.user.id), eq(follows.followedId, profile.userId))).limit(1);
-  const canSeePosts = isOwnProfile || relation?.status === 'accepted';
-  const moments = canSeePosts ? await db.select({ id: posts.id, caption: posts.caption, createdAt: posts.createdAt, mediaId: postMedia.id })
+  const canSeePosts = !isBlocked && (isOwnProfile || relation?.status === 'accepted');
+  const moments = canSeePosts ? await db.select({ id: posts.id, caption: posts.caption, createdAt: posts.createdAt, isCommercial: posts.isCommercial, sponsorName: posts.sponsorName, mediaId: postMedia.id })
     .from(posts).leftJoin(postMedia, eq(postMedia.postId, posts.id)).where(and(eq(posts.authorId, profile.userId), eq(posts.moderationStatus, 'visible')))
     .orderBy(desc(posts.createdAt), desc(posts.id)).limit(100) : [];
   const likedRows = moments.length ? await db.select({ postId: postReactions.postId }).from(postReactions)
@@ -27,7 +31,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     db.select({ value: count() }).from(follows).where(and(eq(follows.followerId, profile.userId), eq(follows.status, 'accepted')))
   ]);
 
-  return { profile, isOwnProfile, followStatus: relation?.status ?? null, canSeePosts, moments: profilePosts, stats: { posts: postCount.value, followers: followerCount.value, following: followingCount.value } };
+  return { profile, isOwnProfile, isBlocked, followStatus: relation?.status ?? null, canSeePosts, moments: profilePosts, stats: { posts: postCount.value, followers: followerCount.value, following: followingCount.value } };
 };
 
 export const actions: Actions = {
@@ -35,11 +39,13 @@ export const actions: Actions = {
     if (!locals.user) redirect(303, '/login');
     const [target] = await db.select({ id: profiles.userId }).from(profiles).where(eq(profiles.username, params.username.toLowerCase())).limit(1);
     if (!target || target.id === locals.user.id) return fail(400, { followError: 'Ugyldig profil.' });
+    const [block] = await db.select({ blockerId: userBlocks.blockerId }).from(userBlocks).where(or(and(eq(userBlocks.blockerId, locals.user.id), eq(userBlocks.blockedId, target.id)), and(eq(userBlocks.blockerId, target.id), eq(userBlocks.blockedId, locals.user.id)))).limit(1);
+    if (block) return fail(403, { followError: 'Denne profilen kan ikke følges.' });
     const [existing] = await db.select({ status: follows.status }).from(follows)
       .where(and(eq(follows.followerId, locals.user.id), eq(follows.followedId, target.id))).limit(1);
     if (existing?.status === 'blocked') return fail(403, { followError: 'Denne profilen kan ikke følges.' });
-    await db.insert(follows).values({ followerId: locals.user.id, followedId: target.id, status: 'accepted' })
-      .onDuplicateKeyUpdate({ set: { status: 'accepted' } });
+    await db.insert(follows).values({ followerId: locals.user.id, followedId: target.id, status: 'pending' })
+      .onDuplicateKeyUpdate({ set: { status: 'pending' } });
   },
   unfollow: async ({ params, locals }) => {
     if (!locals.user) redirect(303, '/login');

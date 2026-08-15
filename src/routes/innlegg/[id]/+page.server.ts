@@ -17,7 +17,7 @@ async function canView(postId: string, userId: string) {
 export const load: PageServerLoad = async ({ params, locals }) => {
   if (!locals.user) redirect(303, `/login?next=/innlegg/${encodeURIComponent(params.id)}`);
   if (!(await canView(params.id, locals.user.id))) error(404, 'Innlegget finnes ikke.');
-  const [post] = await db.select({ id: posts.id, caption: posts.caption, createdAt: posts.createdAt, authorName: profiles.realName, authorUsername: profiles.username, authorRole: users.accountRole, mediaId: postMedia.id })
+  const [post] = await db.select({ id: posts.id, caption: posts.caption, createdAt: posts.createdAt, isCommercial: posts.isCommercial, sponsorName: posts.sponsorName, authorName: profiles.realName, authorUsername: profiles.username, authorRole: users.accountRole, mediaId: postMedia.id })
     .from(posts).innerJoin(profiles, eq(profiles.userId, posts.authorId)).innerJoin(users, eq(users.id, posts.authorId)).leftJoin(postMedia, eq(postMedia.postId, posts.id)).where(eq(posts.id, params.id)).limit(1);
   const rows = await db.select({ id: comments.id, body: comments.body, createdAt: comments.createdAt, authorName: profiles.realName, authorUsername: profiles.username })
     .from(comments).innerJoin(profiles, eq(profiles.userId, comments.authorId)).where(and(eq(comments.postId, params.id), eq(comments.moderationStatus, 'visible'))).orderBy(desc(comments.createdAt), desc(comments.id)).limit(300);

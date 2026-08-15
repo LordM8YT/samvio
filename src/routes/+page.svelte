@@ -12,6 +12,7 @@
   let isPublishing = $state(false);
   let isCompressing = $state(false);
   let compressedImage: File | null = null;
+  let isCommercial = $state(false);
   $effect(() => { if (form?.postError || data.openComposer) composerOpen = true; });
   async function validateImage(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
@@ -75,11 +76,12 @@
       <button class="modal-close" aria-label="Lukk" onclick={() => composerOpen = false}><X size={22}/></button>
       <PlusSquare size={40}/><h2 id="composer-title">Opprett nytt innlegg</h2>
       {#if !data.user}<p>Du må logge inn før du kan dele.</p><a class="select-button" href="/login">Logg inn</a>
-      {:else}<form method="POST" action="?/createPost" enctype="multipart/form-data" use:enhance={submitPost}><label class="file-field">Velg bilde<input name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={validateImage} required/>{#if selectedFileName}<span>{selectedFileName}</span>{/if}</label><label>Bildetekst<textarea name="caption" maxlength="2200" rows="4" placeholder="Skriv noe om øyeblikket …"></textarea></label>{#if uploadError}<div class="form-error" role="alert">{uploadError}</div>{/if}{#if form?.postError}<div class="form-error" role="alert">{form.postError}</div>{/if}<button class="select-button" disabled={isPublishing || isCompressing || !!uploadError}>{isCompressing ? 'Klargjør bilde …' : isPublishing ? 'Laster opp …' : 'Del nå'}</button></form>{/if}
+      {:else}<form method="POST" action="?/createPost" enctype="multipart/form-data" use:enhance={submitPost}><label class="file-field">Velg bilde<input name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={validateImage} required/>{#if selectedFileName}<span>{selectedFileName}</span>{/if}</label><label>Bildetekst<textarea name="caption" maxlength="2200" rows="4" placeholder="Skriv noe om øyeblikket …"></textarea></label><label class="commercial-toggle"><input name="isCommercial" type="checkbox" bind:checked={isCommercial}/><span><strong>Reklame eller sponset innhold</strong><small>Merk kommersielt innhold tydelig. Det får aldri ekstra rekkevidde.</small></span></label>{#if isCommercial}<label>Annonsør eller sponsor<input name="sponsorName" maxlength="120" placeholder="Navnet på virksomheten" required/></label>{/if}{#if uploadError}<div class="form-error" role="alert">{uploadError}</div>{/if}{#if form?.postError}<div class="form-error" role="alert">{form.postError}</div>{/if}<button class="select-button" disabled={isPublishing || isCompressing || !!uploadError}>{isCompressing ? 'Klargjør bilde …' : isPublishing ? 'Laster opp …' : 'Del nå'}</button></form>{/if}
     </div>
   </div>
 {/if}
 
 <style>
   .quick-share{display:flex;align-items:center;gap:11px;margin:8px 0 14px;padding:12px;border:1px solid #ddd7cc;border-radius:14px;background:linear-gradient(120deg,#fff,#f7f1e7);box-shadow:0 8px 25px #26382f0a}.quick-avatar{width:38px;height:38px;display:grid;place-items:center;flex:none;border-radius:50%;background:#e7f0eb;color:#315d49}.quick-share button{flex:1;padding:11px 14px;border:1px solid #e0ddd5;border-radius:999px;background:#fff;color:#747874;text-align:left}.quick-share>svg{color:#b76538}@media(max-width:700px){.quick-share{margin:0;padding:10px 14px;border-width:0 0 1px;border-radius:0;box-shadow:none}.quick-share>svg{display:none}}
+  .commercial-toggle{display:flex!important;grid-template-columns:none!important;align-items:flex-start;gap:10px!important;padding:12px;border:1px solid #dfd8cb;border-radius:9px;background:#faf6ef}.commercial-toggle input{width:18px;height:18px;margin:1px 0}.commercial-toggle span{display:grid;gap:2px}.commercial-toggle small{color:#777;font-weight:400;line-height:1.4}.composer label>input:not([type=file]):not([type=checkbox]){padding:10px;border:1px solid #d6d6d6;border-radius:7px;font:13px 'DM Sans',sans-serif}
 </style>

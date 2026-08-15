@@ -54,6 +54,8 @@ export const posts = mysqlTable('posts', {
   caption: text('caption'),
   visibility: mysqlEnum('visibility', ['followers', 'friends', 'private']).notNull().default('followers'),
   moderationStatus: mysqlEnum('moderation_status', ['visible', 'hidden']).notNull().default('visible'),
+  isCommercial: boolean('is_commercial').notNull().default(false),
+  sponsorName: varchar('sponsor_name', { length: 120 }),
   createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { mode: 'date', fsp: 6 }).notNull().defaultNow().onUpdateNow()
 }, (t) => [index('idx_posts_chronological').on(t.createdAt, t.id), index('idx_posts_author').on(t.authorId, t.createdAt)]);
@@ -95,6 +97,21 @@ export const contentReports = mysqlTable('content_reports', {
   resolvedAt: timestamp('resolved_at', { mode: 'date' }),
   createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow()
 }, (t) => [index('idx_content_reports_queue').on(t.status, t.createdAt), index('idx_content_reports_target').on(t.targetType, t.targetId)]);
+
+export const userBlocks = mysqlTable('user_blocks', {
+  blockerId: char('blocker_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  blockedId: char('blocked_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow()
+}, (t) => [primaryKey({ columns: [t.blockerId, t.blockedId] }), index('idx_user_blocks_blocked').on(t.blockedId)]);
+
+export const userPreferences = mysqlTable('user_preferences', {
+  userId: char('user_id', { length: 36 }).primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  hideCommercialContent: boolean('hide_commercial_content').notNull().default(false),
+  notifyFollows: boolean('notify_follows').notNull().default(true),
+  notifyComments: boolean('notify_comments').notNull().default(true),
+  notifyReactions: boolean('notify_reactions').notNull().default(true),
+  ...timestamps
+});
 
 export const organizations = mysqlTable('organizations', {
   id: char('id', { length: 36 }).primaryKey(), name: varchar('name', { length: 160 }).notNull(),

@@ -76,6 +76,7 @@
     <section>
       <h2>10. Brukerkonto og innhold</h2>
       <p>Kjøper må følge Samvios bruksvilkår og norsk lov. Ulovlig innhold, trakassering, misbruk av andres identitet og forsøk på å omgå sikkerheten er ikke tillatt. Begrensning eller stenging skal bygge på saklig grunn, og brukeren varsles når lov og sikkerhet tillater det.</p>
+      <p>Skapere, influensere, lag og virksomheter kan dele kommersielt innhold når innlegget merkes tydelig som reklame eller sponset innhold og oppdragsgiveren oppgis. Skjult reklame, villedende markedsføring og reklame rettet mot barn er ikke tillatt. Kommersielle innlegg får ingen bedre plassering enn andre innlegg og kan skjules i brukerens innstillinger.</p>
       <p>Brukeren beholder rettighetene til eget innhold. Behandling, sletting og eventuell utlevering av data beskrives i <a href="/personvern">personvernerklæringen</a>.</p>
     </section>
 

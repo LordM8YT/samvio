@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gt, inArray, lte, or } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, lte, notInArray, or } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, postMedia, postReactions, posts, profiles, userFeedState, users } from '$lib/server/db/schema';
+import { follows, postMedia, postReactions, posts, profiles, userBlocks, userFeedState, userPreferences, users } from '$lib/server/db/schema';
 import { removeUpload, saveUpload } from '$lib/server/storage';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
@@ -16,14 +16,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   try {
     const feedWindowEnd = new Date();
-    const [state] = await db.select({ caughtUpAt: userFeedState.caughtUpAt }).from(userFeedState)
-      .where(eq(userFeedState.userId, locals.user.id)).limit(1);
+    const [[state], [preference], blockRows] = await Promise.all([
+      db.select({ caughtUpAt: userFeedState.caughtUpAt }).from(userFeedState).where(eq(userFeedState.userId, locals.user.id)).limit(1),
+      db.select({ hideCommercial: userPreferences.hideCommercialContent }).from(userPreferences).where(eq(userPreferences.userId, locals.user.id)).limit(1),
+      db.select({ blockerId: userBlocks.blockerId, blockedId: userBlocks.blockedId }).from(userBlocks).where(or(eq(userBlocks.blockerId, locals.user.id), eq(userBlocks.blockedId, locals.user.id)))
+    ]);
+    const blockedIds = blockRows.map((row) => row.blockerId === locals.user!.id ? row.blockedId : row.blockerId);
     const followedUsers = db.select({ id: follows.followedId }).from(follows)
       .where(and(eq(follows.followerId, locals.user.id), eq(follows.status, 'accepted')));
     const audience = or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers))!;
+    const visibilityFilters = [eq(posts.moderationStatus, 'visible'), ...(blockedIds.length ? [notInArray(posts.authorId, blockedIds)] : []), ...(preference?.hideCommercial ? [eq(posts.isCommercial, false)] : [])];
     const feedFilter = state?.caughtUpAt
-      ? and(audience, eq(posts.moderationStatus, 'visible'), gt(posts.createdAt, state.caughtUpAt), lte(posts.createdAt, feedWindowEnd))
-      : and(audience, eq(posts.moderationStatus, 'visible'), lte(posts.createdAt, feedWindowEnd));
+      ? and(audience, ...visibilityFilters, gt(posts.createdAt, state.caughtUpAt), lte(posts.createdAt, feedWindowEnd))
+      : and(audience, ...visibilityFilters, lte(posts.createdAt, feedWindowEnd));
     const rows = await db.select({
       id: posts.id,
       caption: posts.caption,
@@ -31,6 +36,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       authorName: profiles.realName,
       authorUsername: profiles.username,
       authorRole: users.accountRole,
+      isCommercial: posts.isCommercial,
+      sponsorName: posts.sponsorName,
       mediaId: postMedia.id
     }).from(posts)
       .innerJoin(profiles, eq(profiles.userId, posts.authorId))
@@ -68,6 +75,10 @@ export const actions: Actions = {
     const file = form.get('image');
     const captionValue = form.get('caption');
     const caption = typeof captionValue === 'string' ? captionValue.trim().slice(0, 2200) : '';
+    const isCommercial = form.get('isCommercial') === 'on';
+    const sponsorValue = form.get('sponsorName');
+    const sponsorName = typeof sponsorValue === 'string' ? sponsorValue.trim().slice(0, 120) : '';
+    if (isCommercial && sponsorName.length < 2) return fail(400, { postError: 'Oppgi hvem innlegget reklamerer for.' });
     if (!(file instanceof File) || file.size === 0) return fail(400, { postError: 'Velg et bilde.' });
     const extension = allowedTypes.get(file.type);
     if (!extension || file.size > MAX_IMAGE_BYTES) return fail(400, { postError: 'Bruk JPG, PNG eller WebP på maks 25 MB.' });
@@ -79,7 +90,7 @@ export const actions: Actions = {
 
     try {
       await db.transaction(async (tx) => {
-        await tx.insert(posts).values({ id: postId, authorId: locals.user!.id, caption: caption || null });
+        await tx.insert(posts).values({ id: postId, authorId: locals.user!.id, caption: caption || null, isCommercial, sponsorName: isCommercial ? sponsorName : null });
         await tx.insert(postMedia).values({ id: mediaId, postId, mediaType: 'image', storageKey });
       });
     } catch {

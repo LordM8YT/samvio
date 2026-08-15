@@ -5,7 +5,7 @@ import { fail, isRedirect, redirect } from '@sveltejs/kit';
 import { z } from 'zod';
 import { createSession, sessionCookieOptions, SESSION_COOKIE } from '$lib/server/auth';
 import { db } from '$lib/server/db';
-import { profiles, users } from '$lib/server/db/schema';
+import { profiles, userPreferences, users } from '$lib/server/db/schema';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -40,6 +40,7 @@ export const actions: Actions = {
       await db.transaction(async (tx) => {
         await tx.insert(users).values({ id, email: parsed.data.email, passwordHash: await hash(parsed.data.password, 12), accountStatus: 'active' });
         await tx.insert(profiles).values({ userId: id, realName: parsed.data.realName, username: parsed.data.username, ageBand });
+        await tx.insert(userPreferences).values({ userId: id, hideCommercialContent: ageBand !== 'adult' });
       });
       const token = await createSession(id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, nextPath(url));
     } catch (error) { if (isRedirect(error)) throw error; return fail(409, { mode: 'register', message: 'E-post eller brukernavn er allerede i bruk, eller databasen mangler.' }); }
