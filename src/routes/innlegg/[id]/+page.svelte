@@ -10,7 +10,19 @@
   }
 </script>
 
-<svelte:head><title>Øyeblikk – Samvio</title></svelte:head>
+<svelte:head>
+  <title>{data.post.authorName} på Samvio</title>
+  <meta name="description" content={data.post.caption || `Se et offentlig øyeblikk fra ${data.post.authorName} på Samvio.`}/>
+  <meta property="og:type" content="article"/>
+  <meta property="og:title" content={`${data.post.authorName} på Samvio`}/>
+  <meta property="og:description" content={data.post.caption || `Se et offentlig øyeblikk fra ${data.post.authorName} på Samvio.`}/>
+  <meta property="og:url" content={`https://samvio.no/innlegg/${data.post.id}`}/>
+  <meta property="og:image" content={data.post.mediaId ? `https://samvio.no/media/${data.post.mediaId}` : 'https://samvio.no/og-samvio.png'}/>
+  <meta name="twitter:card" content="summary_large_image"/>
+  <meta name="twitter:title" content={`${data.post.authorName} på Samvio`}/>
+  <meta name="twitter:description" content={data.post.caption || `Se et offentlig øyeblikk fra ${data.post.authorName} på Samvio.`}/>
+  <meta name="twitter:image" content={data.post.mediaId ? `https://samvio.no/media/${data.post.mediaId}` : 'https://samvio.no/og-samvio.png'}/>
+</svelte:head>
 
 <main class="moment-page">
   <div class="moment-shell">

@@ -5,6 +5,7 @@ import { db } from '$lib/server/db';
 import { follows, postMedia, postReactions, posts, profiles, userBlocks, userFeedState, userPreferences, users } from '$lib/server/db/schema';
 import { removeUpload, saveUpload } from '$lib/server/storage';
 import { consumeRateLimit } from '$lib/server/rate-limit';
+import { isVippsLoginEnabled } from '$lib/server/vipps/config';
 import type { Actions, PageServerLoad } from './$types';
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
@@ -12,7 +13,39 @@ const allowedTypes = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['ima
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   const openComposer = url.searchParams.get('opprett') === '1';
-  if (!locals.user) return { user: null, posts: [], openComposer, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0 };
+  const vippsLoginEnabled = isVippsLoginEnabled();
+  if (!locals.user) {
+    try {
+      const publicPosts = await db.select({
+        id: posts.id,
+        caption: posts.caption,
+        createdAt: posts.createdAt,
+        authorName: profiles.realName,
+        authorUsername: profiles.username,
+        authorRole: users.accountRole,
+        isCommercial: posts.isCommercial,
+        sponsorName: posts.sponsorName,
+        mediaId: postMedia.id
+      }).from(posts)
+        .innerJoin(profiles, eq(profiles.userId, posts.authorId))
+        .innerJoin(users, eq(users.id, posts.authorId))
+        .leftJoin(postMedia, eq(postMedia.postId, posts.id))
+        .where(and(eq(posts.visibility, 'public'), eq(posts.moderationStatus, 'visible')))
+        .orderBy(desc(posts.createdAt), desc(posts.id))
+        .limit(6);
+      return {
+        user: null,
+        posts: publicPosts.map((post) => ({ ...post, liked: false })),
+        openComposer: false,
+        caughtUpAt: null,
+        feedWindowEnd: null,
+        peopleCount: new Set(publicPosts.map((post) => post.authorUsername)).size,
+        vippsLoginEnabled
+      };
+    } catch {
+      return { user: null, posts: [], openComposer: false, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0, vippsLoginEnabled };
+    }
+  }
 
   try {
     const feedWindowEnd = new Date();
@@ -49,9 +82,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const likedIds = new Set(likedRows.map((row) => row.postId));
     const feedPosts = rows.map((post) => ({ ...post, liked: likedIds.has(post.id) }));
     const peopleCount = new Set(rows.map((post) => post.authorUsername)).size;
-    return { user: locals.user, posts: feedPosts, openComposer, caughtUpAt: state?.caughtUpAt ?? null, feedWindowEnd: rows.length < 500 ? feedWindowEnd : null, peopleCount };
+    return { user: locals.user, posts: feedPosts, openComposer, caughtUpAt: state?.caughtUpAt ?? null, feedWindowEnd: rows.length < 500 ? feedWindowEnd : null, peopleCount, vippsLoginEnabled };
   } catch {
-    return { user: locals.user, posts: [], openComposer, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0, feedError: true };
+    return { user: locals.user, posts: [], openComposer, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0, feedError: true, vippsLoginEnabled };
   }
 };
 
@@ -76,6 +109,7 @@ export const actions: Actions = {
     const captionValue = form.get('caption');
     const caption = typeof captionValue === 'string' ? captionValue.trim().slice(0, 2200) : '';
     const isCommercial = form.get('isCommercial') === 'on';
+    const isPublic = form.get('isPublic') === 'on';
     const sponsorValue = form.get('sponsorName');
     const sponsorName = typeof sponsorValue === 'string' ? sponsorValue.trim().slice(0, 120) : '';
     if (isCommercial && sponsorName.length < 2) return fail(400, { postError: 'Oppgi hvem innlegget reklamerer for.' });
@@ -90,7 +124,7 @@ export const actions: Actions = {
 
     try {
       await db.transaction(async (tx) => {
-        await tx.insert(posts).values({ id: postId, authorId: locals.user!.id, caption: caption || null, isCommercial, sponsorName: isCommercial ? sponsorName : null });
+        await tx.insert(posts).values({ id: postId, authorId: locals.user!.id, caption: caption || null, visibility: isPublic ? 'public' : 'followers', isCommercial, sponsorName: isCommercial ? sponsorName : null });
         await tx.insert(postMedia).values({ id: mediaId, postId, mediaType: 'image', storageKey });
       });
     } catch {

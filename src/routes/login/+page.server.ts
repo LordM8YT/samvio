@@ -7,13 +7,17 @@ import { createSession, sessionCookieOptions, SESSION_COOKIE } from '$lib/server
 import { db } from '$lib/server/db';
 import { profiles, userPreferences, users } from '$lib/server/db/schema';
 import { consumeRateLimit } from '$lib/server/rate-limit';
+import { isVippsLoginEnabled } from '$lib/server/vipps/config';
 import type { Actions, PageServerLoad } from './$types';
 
 const loginSchema = z.object({ email: z.string().trim().email().transform((v) => v.toLowerCase()), password: z.string().min(8).max(128) });
 const registerSchema = loginSchema.extend({ realName: z.string().trim().min(2).max(120), username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,30}$/), birthDate: z.coerce.date().max(new Date()) });
 const nextPath = (url: URL) => { const next = url.searchParams.get('next'); return next?.startsWith('/') && !next.startsWith('//') ? next : '/'; };
 
-export const load: PageServerLoad = ({ locals, url }) => { if (locals.user) redirect(303, nextPath(url)); };
+export const load: PageServerLoad = ({ locals, url }) => {
+  if (locals.user) redirect(303, nextPath(url));
+  return { vippsLoginEnabled: isVippsLoginEnabled(), vippsError: url.searchParams.get('vipps_error'), next: nextPath(url), registerMode: url.searchParams.get('ny') === '1' };
+};
 
 export const actions: Actions = {
   login: async ({ request, cookies, getClientAddress, url }) => {

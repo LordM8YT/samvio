@@ -6,22 +6,28 @@ import { comments, follows, notifications, postMedia, posts, profiles, postReact
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
-async function canView(postId: string, userId: string) {
-  const [post] = await db.select({ authorId: posts.authorId }).from(posts).where(and(eq(posts.id, postId), eq(posts.moderationStatus, 'visible'))).limit(1);
+async function canView(postId: string, userId?: string) {
+  const [post] = await db.select({ authorId: posts.authorId, visibility: posts.visibility }).from(posts).where(and(eq(posts.id, postId), eq(posts.moderationStatus, 'visible'))).limit(1);
   if (!post) return false;
+  if (post.visibility === 'public') return true;
+  if (!userId) return false;
   if (post.authorId === userId) return true;
   const [relation] = await db.select({ status: follows.status }).from(follows).where(and(eq(follows.followerId, userId), eq(follows.followedId, post.authorId), eq(follows.status, 'accepted'))).limit(1);
   return !!relation;
 }
 
 export const load: PageServerLoad = async ({ params, locals }) => {
-  if (!locals.user) redirect(303, `/login?next=/innlegg/${encodeURIComponent(params.id)}`);
-  if (!(await canView(params.id, locals.user.id))) error(404, 'Innlegget finnes ikke.');
+  if (!(await canView(params.id, locals.user?.id))) {
+    if (!locals.user) redirect(303, `/login?next=/innlegg/${encodeURIComponent(params.id)}`);
+    error(404, 'Innlegget finnes ikke.');
+  }
   const [post] = await db.select({ id: posts.id, caption: posts.caption, createdAt: posts.createdAt, isCommercial: posts.isCommercial, sponsorName: posts.sponsorName, authorName: profiles.realName, authorUsername: profiles.username, authorRole: users.accountRole, mediaId: postMedia.id })
     .from(posts).innerJoin(profiles, eq(profiles.userId, posts.authorId)).innerJoin(users, eq(users.id, posts.authorId)).leftJoin(postMedia, eq(postMedia.postId, posts.id)).where(eq(posts.id, params.id)).limit(1);
   const rows = await db.select({ id: comments.id, body: comments.body, createdAt: comments.createdAt, authorName: profiles.realName, authorUsername: profiles.username })
     .from(comments).innerJoin(profiles, eq(profiles.userId, comments.authorId)).where(and(eq(comments.postId, params.id), eq(comments.moderationStatus, 'visible'))).orderBy(desc(comments.createdAt), desc(comments.id)).limit(300);
-  const [reaction] = await db.select({ postId: postReactions.postId }).from(postReactions).where(and(eq(postReactions.postId, params.id), eq(postReactions.userId, locals.user.id))).limit(1);
+  const [reaction] = locals.user
+    ? await db.select({ postId: postReactions.postId }).from(postReactions).where(and(eq(postReactions.postId, params.id), eq(postReactions.userId, locals.user.id))).limit(1)
+    : [];
   return { post: { ...post, liked: !!reaction }, comments: rows };
 };
 

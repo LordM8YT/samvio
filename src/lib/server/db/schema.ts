@@ -1,4 +1,4 @@
-import { boolean, char, index, int, json, mysqlEnum, mysqlTable, primaryKey, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/mysql-core';
+import { boolean, char, date, index, int, json, mysqlEnum, mysqlTable, primaryKey, text, timestamp, uniqueIndex, varchar } from 'drizzle-orm/mysql-core';
 
 const timestamps = {
   createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow(),
@@ -35,6 +35,20 @@ export const sessions = mysqlTable('sessions', {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow()
 }, (t) => [index('idx_sessions_user_id').on(t.userId)]);
 
+export const verifications = mysqlTable('verifications', {
+  id: char('id', { length: 36 }).primaryKey(),
+  userId: char('user_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  provider: mysqlEnum('provider', ['bankid', 'vipps', 'signicat', 'criipto', 'guardian']).notNull(),
+  providerSubject: varchar('provider_subject', { length: 255 }).notNull(),
+  status: mysqlEnum('status', ['pending', 'verified', 'rejected', 'expired', 'revoked']).notNull().default('pending'),
+  birthDate: date('birth_date', { mode: 'string' }),
+  assuranceLevel: varchar('assurance_level', { length: 100 }),
+  identityVerifiedAt: timestamp('identity_verified_at', { mode: 'date', fsp: 6 }),
+  expiresAt: timestamp('expires_at', { mode: 'date', fsp: 6 }),
+  providerMetadata: json('provider_metadata'),
+  ...timestamps
+}, (t) => [uniqueIndex('uq_verification_provider_subject').on(t.provider, t.providerSubject), uniqueIndex('uq_verification_user_provider').on(t.userId, t.provider), index('idx_verifications_user_id').on(t.userId)]);
+
 export const userFeedState = mysqlTable('user_feed_state', {
   userId: char('user_id', { length: 36 }).primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   caughtUpAt: timestamp('caught_up_at', { mode: 'date', fsp: 6 }),
@@ -52,7 +66,7 @@ export const posts = mysqlTable('posts', {
   id: char('id', { length: 36 }).primaryKey(),
   authorId: char('author_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   caption: text('caption'),
-  visibility: mysqlEnum('visibility', ['followers', 'friends', 'private']).notNull().default('followers'),
+  visibility: mysqlEnum('visibility', ['public', 'followers', 'friends', 'private']).notNull().default('followers'),
   moderationStatus: mysqlEnum('moderation_status', ['visible', 'hidden']).notNull().default('visible'),
   isCommercial: boolean('is_commercial').notNull().default(false),
   sponsorName: varchar('sponsor_name', { length: 120 }),
