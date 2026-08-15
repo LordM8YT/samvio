@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, desc, eq } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { comments, follows, postMedia, posts, profiles, postReactions, users } from '$lib/server/db/schema';
+import { comments, follows, notifications, postMedia, posts, profiles, postReactions, userPreferences, users } from '$lib/server/db/schema';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -36,7 +36,13 @@ export const actions: Actions = {
     const value = (await request.formData()).get('comment');
     const body = typeof value === 'string' ? value.trim() : '';
     if (!body || body.length > 1000) return fail(400, { commentError: 'Kommentaren må inneholde 1–1000 tegn.' });
-    await db.insert(comments).values({ id: randomUUID(), postId: params.id, authorId: locals.user.id, body });
+    const commentId = randomUUID();
+    await db.insert(comments).values({ id: commentId, postId: params.id, authorId: locals.user.id, body });
+    const [post] = await db.select({ authorId: posts.authorId }).from(posts).where(eq(posts.id, params.id)).limit(1);
+    if (post && post.authorId !== locals.user.id) {
+      const [preference] = await db.select({ enabled: userPreferences.notifyComments }).from(userPreferences).where(eq(userPreferences.userId, post.authorId)).limit(1);
+      if (preference?.enabled !== false) await db.insert(notifications).values({ id: randomUUID(), recipientId: post.authorId, actorId: locals.user.id, type: 'comment', postId: params.id });
+    }
     redirect(303, `/innlegg/${params.id}#kommentarer`);
   }
 };

@@ -113,6 +113,16 @@ export const userPreferences = mysqlTable('user_preferences', {
   ...timestamps
 });
 
+export const notifications = mysqlTable('notifications', {
+  id: char('id', { length: 36 }).primaryKey(),
+  recipientId: char('recipient_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  actorId: char('actor_id', { length: 36 }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: mysqlEnum('type', ['comment', 'reaction']).notNull(),
+  postId: char('post_id', { length: 36 }).references(() => posts.id, { onDelete: 'cascade' }),
+  isRead: boolean('is_read').notNull().default(false),
+  createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow()
+}, (t) => [index('idx_notifications_recipient').on(t.recipientId, t.isRead, t.createdAt), index('idx_notifications_actor').on(t.actorId)]);
+
 export const organizations = mysqlTable('organizations', {
   id: char('id', { length: 36 }).primaryKey(), name: varchar('name', { length: 160 }).notNull(),
   slug: varchar('slug', { length: 60 }).notNull(),

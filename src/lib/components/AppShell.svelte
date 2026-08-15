@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Clock3, Home, PlusSquare, Search, Settings, ShieldCheck, UserRound } from '@lucide/svelte';
+  import { Bell, Clock3, Home, PlusSquare, Search, Settings, ShieldCheck, UserRound } from '@lucide/svelte';
   import { page } from '$app/state';
   let { children, user } = $props();
   const items = [
@@ -7,6 +7,7 @@
     { href: '/sok', label: 'Søk', icon: Search },
     { href: '/historikk', label: 'Historikk', icon: Clock3 },
     { href: '/?opprett=1', label: 'Opprett', icon: PlusSquare },
+    { href: '/varsler', label: 'Varsler', icon: Bell },
     { href: '/profil', label: 'Profil', icon: UserRound },
     { href: '/innstillinger', label: 'Innstillinger', icon: Settings },
     ...(user?.role === 'admin' ? [{ href: '/admin', label: 'Admin', icon: ShieldCheck }] : [])
@@ -22,4 +23,5 @@
 
 <style>
   .shell-content{min-height:100vh;margin-left:244px}.mobile-nav a.active{color:#315d49;background:#edf1ee}.nav-footer{margin-top:auto;padding:18px 12px 4px;color:#858984}.nav-footer div{display:flex;flex-wrap:wrap;gap:7px 12px}.nav-footer a{font-size:10px}.nav-footer a:hover{color:#315d49;text-decoration:underline}.nav-footer small{display:block;margin-top:12px;font-size:9px;text-transform:uppercase;letter-spacing:.06em}.mobile-footer{display:none}@media(max-width:1160px){.shell-content{margin-left:74px}.nav-footer{display:none}}@media(max-width:700px){.shell-content{margin-left:0;padding-top:calc(52px + env(safe-area-inset-top));padding-bottom:calc(58px + env(safe-area-inset-bottom))}.mobile-footer{display:grid;gap:14px;padding:28px 18px calc(22px + env(safe-area-inset-bottom));border-top:1px solid #e4e0d8;background:#f7f4ee;color:#787d78}.mobile-footer nav{display:flex;flex-wrap:wrap;gap:10px 18px}.mobile-footer a{font-size:11px}.mobile-footer small{font-size:10px}}
+  .mobile-nav a{flex:1;min-width:38px;max-width:48px}
 </style>

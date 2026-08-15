@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, like, ne, or } from 'drizzle-orm';
+import { and, desc, eq, inArray, like, ne, or } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, postMedia, posts, profiles, userBlocks, userPreferences, users } from '$lib/server/db/schema';
+import { follows, notifications, postMedia, posts, profiles, userBlocks, userPreferences, users } from '$lib/server/db/schema';
 import { deleteSession, SESSION_COOKIE } from '$lib/server/auth';
 import { removeUpload, saveUpload } from '$lib/server/storage';
 import type { Actions, PageServerLoad } from './$types';
@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   const query = url.searchParams.get('q')?.trim().slice(0, 60) ?? '';
   let results: Array<{ userId: string; realName: string; username: string; followStatus: 'pending' | 'accepted' | 'blocked' | null }> = [];
   let followRequests: Array<{ userId: string; realName: string; username: string; createdAt: Date }> = [];
+  let activityNotifications: Array<{ id: string; type: 'comment' | 'reaction'; postId: string | null; isRead: boolean; createdAt: Date; actorName: string; actorUsername: string }> = [];
   if (params.section === 'sok' && query) {
     const matches = await db.select({ userId: profiles.userId, realName: profiles.realName, username: profiles.username })
       .from(profiles)
@@ -36,6 +37,9 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     followRequests = await db.select({ userId: profiles.userId, realName: profiles.realName, username: profiles.username, createdAt: follows.createdAt })
       .from(follows).innerJoin(profiles, eq(profiles.userId, follows.followerId))
       .where(and(eq(follows.followedId, locals.user.id), eq(follows.status, 'pending'))).limit(100);
+    activityNotifications = await db.select({ id: notifications.id, type: notifications.type, postId: notifications.postId, isRead: notifications.isRead, createdAt: notifications.createdAt, actorName: profiles.realName, actorUsername: profiles.username })
+      .from(notifications).innerJoin(profiles, eq(profiles.userId, notifications.actorId))
+      .where(eq(notifications.recipientId, locals.user.id)).orderBy(desc(notifications.createdAt)).limit(100);
   }
 
   let profileBio: string | null = null;
@@ -49,10 +53,15 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
     if (savedPreferences) preferences = { hideCommercialContent: savedPreferences.hideCommercialContent, notifyFollows: savedPreferences.notifyFollows, notifyComments: savedPreferences.notifyComments, notifyReactions: savedPreferences.notifyReactions };
   }
 
-  return { section: params.section, user: locals.user, query, results, followRequests, profileBio, profileImages, preferences };
+  return { section: params.section, user: locals.user, query, results, followRequests, activityNotifications, profileBio, profileImages, preferences };
 };
 
 export const actions: Actions = {
+  markNotificationsRead: async ({ locals }) => {
+    if (!locals.user) redirect(303, '/login');
+    await db.update(notifications).set({ isRead: true }).where(and(eq(notifications.recipientId, locals.user.id), eq(notifications.isRead, false)));
+    return { notificationsRead: true };
+  },
   updateProfile: async ({ request, locals }) => {
     if (!locals.user) redirect(303, '/login');
     const form = await request.formData();
