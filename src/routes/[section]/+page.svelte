@@ -1,53 +1,106 @@
 <script lang="ts">
-  import { Bell, Compass, Home, Menu, MessageCircle, PlusSquare, Search, ShieldCheck, UserRound, Video } from '@lucide/svelte';
-  let { data } = $props();
-  const navigation = [
-    { slug: '', label: 'Hjem', icon: Home }, { slug: 'sok', label: 'Søk', icon: Search },
-    { slug: 'utforsk', label: 'Utforsk', icon: Compass }, { slug: 'videoer', label: 'Videoer', icon: Video },
-    { slug: 'meldinger', label: 'Meldinger', icon: MessageCircle }, { slug: 'varsler', label: 'Varsler', icon: Bell },
-    { slug: '?opprett=1', label: 'Opprett', icon: PlusSquare }, { slug: 'profil', label: 'Profil', icon: UserRound }
-  ];
+  import { onMount } from 'svelte';
+  import { enhance } from '$app/forms';
+  import type { SubmitFunction } from '@sveltejs/kit';
+  import { Bell, Heart, MessageCircle, Search, ShieldCheck, UserRound } from '@lucide/svelte';
+  import { compressImage } from '$lib/client/compress-image';
+  let { data, form } = $props();
+  let preparedAvatar: File | null = $state(null);
+  let preparedCover: File | null = $state(null);
+  let preparingImages = $state(0);
+  let profileUploadError = $state('');
+  let savingProfile = $state(false);
+  let settingsCategory = $state<'profil' | 'konto' | 'personvern'>('profil');
+  const selectSettingsCategory = (category: 'profil' | 'konto' | 'personvern') => {
+    settingsCategory = category;
+    history.replaceState(null, '', `#${category}`);
+  };
+  onMount(() => {
+    const category = location.hash.slice(1);
+    if (category === 'profil' || category === 'konto' || category === 'personvern') settingsCategory = category;
+  });
+  async function prepareProfileImage(event: Event, kind: 'avatar' | 'cover') {
+    const file = (event.currentTarget as HTMLInputElement).files?.[0];
+    if (kind === 'avatar') preparedAvatar = null; else preparedCover = null;
+    if (!file) return;
+    preparingImages += 1;
+    profileUploadError = '';
+    try {
+      const prepared = await compressImage(file, kind === 'avatar' ? 1200 : 2200, kind === 'avatar' ? 1_200_000 : 2_500_000);
+      if (kind === 'avatar') preparedAvatar = prepared; else preparedCover = prepared;
+    } catch (error) {
+      profileUploadError = error instanceof Error ? error.message : 'Bildet kunne ikke klargjøres.';
+    } finally {
+      preparingImages -= 1;
+    }
+  }
+  const submitProfile: SubmitFunction = ({ formData, cancel }) => {
+    if (preparingImages || profileUploadError) { cancel(); return; }
+    if (preparedAvatar) formData.set('avatar', preparedAvatar); else formData.delete('avatar');
+    if (preparedCover) formData.set('cover', preparedCover); else formData.delete('cover');
+    savingProfile = true;
+    return async ({ update }) => { await update(); savingProfile = false; };
+  };
   const copy: Record<string, { title: string; intro: string; emptyTitle: string; emptyText: string }> = {
     utforsk: { title: 'Utforsk', intro: 'Finn fellesskap du selv velger å følge.', emptyTitle: 'Fellesskap kommer her', emptyText: 'Vi bygger temabaserte rom uten anbefalingsalgoritmer.' },
     videoer: { title: 'Videoer', intro: 'Videoer fra menneskene og fellesskapene du følger.', emptyTitle: 'Ingen videoer ennå', emptyText: 'Dette er vanlige videoinnlegg — ikke direktesending.' },
     meldinger: { title: 'Meldinger', intro: 'Private samtaler med tydelige trygghetsgrenser.', emptyTitle: 'Ingen samtaler ennå', emptyText: 'Meldinger åpnes først når sikkerhetsreglene og relasjonskontrollen er på plass.' },
     varsler: { title: 'Varsler', intro: 'Nye hendelser vises i kronologisk rekkefølge.', emptyTitle: 'Du har ingen nye varsler', emptyText: 'Her kommer forespørsler, kommentarer og andre hendelser.' }
   };
+  const infoCopy: Record<string, { title: string; intro: string; paragraphs: string[] }> = {
+    om: { title: 'Om Samvio', intro: 'Venner først. Kronologisk. En feed med en slutt.', paragraphs: ['Samvio er en norsk alpha for rolig deling av bilder mellom mennesker som aktivt har valgt hverandre.', 'Vi bygger ikke for maksimal skjermtid. Ingen anbefalingsalgoritme bestemmer rekkefølgen, og feeden stopper når du er ajour.'] },
+    personvern: { title: 'Personvern', intro: 'Alpha – sist oppdatert 14. august 2026', paragraphs: ['Samvio lagrer kontoinformasjon, innlegg, følgerelasjoner og opplastede bilder for å levere tjenesten. Vi selger ikke personopplysninger eller bruker aktivitet til målrettet reklame.', 'Alpha-kontoer bruker e-post og passord og er ikke BankID-verifiserte. Denne teksten er et foreløpig sammendrag og må gjennomgås juridisk før offentlig lansering.', 'Du kan be om innsyn, retting eller sletting via hjelpesiden.'] },
+    vilkar: { title: 'Vilkår for alpha', intro: 'Alpha – sist oppdatert 14. august 2026', paragraphs: ['Samvio er under aktiv utvikling. Funksjoner kan endres, og perioder med nedetid kan forekomme.', 'Du må være minst 13 år for å delta i alphaen. Ikke publiser ulovlig, truende eller privat materiale om andre uten samtykke.', 'Disse vilkårene er ikke endelig juridisk tekst og skal gjennomgås av menneske før offentlig lansering.'] },
+    hjelp: { title: 'Hjelp', intro: 'Vi hjelper alpha-testere direkte.', paragraphs: ['Ved problemer kan du kontakte eieren av alphaen. Ikke send passord, fødselsnummer eller BankID-opplysninger i en melding.', 'Samvio support vil aldri be deg verifisere kontoen via en tilfeldig lenke eller be om passordet ditt. Konto- og sletteforespørsler blir håndtert manuelt i alphaen.'] }
+  };
+  const pageTitle = $derived(data.section === 'innstillinger' ? 'Innstillinger' : data.section === 'sok' ? 'Søk' : infoCopy[data.section]?.title ?? copy[data.section]?.title ?? 'Samvio');
 </script>
 
-<svelte:head><title>{data.section === 'profil' ? 'Profil' : data.section === 'sok' ? 'Søk' : copy[data.section].title} – Samvio</title></svelte:head>
-
-<aside class="main-nav">
-  <a class="wordmark" href="/" aria-label="Samvio hjem"><span class="camera-mark"></span><span>Samvio</span></a>
-  <nav aria-label="Hovedmeny">
-    {#each navigation as item}
-      <a aria-label={item.label} class:active={item.slug === data.section || (item.slug === '' && data.section === '')} href={item.slug.startsWith('?') ? `/${item.slug}` : `/${item.slug}`}><item.icon size={25}/><span>{item.label}</span></a>
-    {/each}
-  </nav>
-  <button class="more"><Menu size={25}/><span>Mer</span></button>
-</aside>
-
-<header class="mobile-header"><a class="wordmark" href="/">Samvio</a><div><a href="/varsler" aria-label="Varsler"><Bell size={23}/></a><a href="/meldinger" aria-label="Meldinger"><MessageCircle size={23}/></a></div></header>
+<svelte:head><title>{pageTitle} – Samvio</title></svelte:head>
 
 <main class="section-layout">
-  <div class="section-shell">
-    {#if data.section === 'sok'}
+  <div class="section-shell" class:settings-shell={data.section === 'innstillinger'}>
+    {#if infoCopy[data.section]}
+      {@const info = infoCopy[data.section]}
+      <h1>{info.title}</h1><p class="section-intro">{info.intro}</p>
+      <section class="section-card info-copy">{#each info.paragraphs as paragraph}<p>{paragraph}</p>{/each}</section>
+    {:else if data.section === 'sok'}
       <h1>Søk</h1><p class="section-intro">Finn ekte, verifiserte mennesker på Samvio.</p>
       <form class="search-form" method="GET"><input name="q" value={data.query} placeholder="Søk etter navn eller brukernavn" aria-label="Søk"/><button>Søk</button></form>
       {#if data.query && data.results.length}
-        <div class="search-results">{#each data.results as person}<div class="person-row"><span><UserRound size={21}/></span><div><strong>{person.realName}</strong><small>@{person.username}</small></div></div>{/each}</div>
+        <div class="search-results">{#each data.results as person}<div class="person-row"><a href={`/bruker/${person.username}`} aria-label={`Se profilen til ${person.realName}`}><UserRound size={21}/></a><div><a href={`/bruker/${person.username}`}><strong>{person.realName}</strong><small>@{person.username}</small></a></div>{#if person.followStatus !== 'blocked'}<form method="POST" action={person.followStatus === 'accepted' ? '?/unfollow' : '?/follow'}><input type="hidden" name="targetId" value={person.userId}/><button disabled={person.followStatus === 'pending'}>{person.followStatus === 'accepted' ? 'Slutt å følge' : person.followStatus === 'pending' ? 'Forespurt' : 'Følg'}</button></form>{/if}</div>{/each}</div>
       {:else if data.query}
         <div class="section-card section-empty"><Search size={34}/><h2>Ingen treff</h2><p>Vi fant ingen profiler som matcher «{data.query}».</p></div>
       {/if}
-    {:else if data.section === 'profil'}
-      <h1>Profil</h1><p class="section-intro">Din konto og medlemskap.</p>
-      <section class="section-card"><div class="profile-details"><UserRound size={42}/><p><strong>{data.user.realName}</strong><br/><span>@{data.user.username}</span></p><p>{data.user.email}</p><p><ShieldCheck size={16}/> Lokal testkonto</p></div><div class="profile-actions"><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
+    {:else if data.section === 'varsler'}
+      <div class="notification-heading"><div><h1>Varsler</h1><p class="section-intro">Følgeforespørsler og nye hendelser, nyeste først.</p></div>{#if data.activityNotifications.some((item) => !item.isRead)}<form method="POST" action="?/markNotificationsRead"><button>Merk alle som lest</button></form>{/if}</div>
+      {#if data.followRequests.length}<section class="section-card request-list"><h2>Følgeforespørsler</h2>{#each data.followRequests as request}<article><a href={`/bruker/${request.username}`}><UserRound size={20}/><span><strong>{request.realName}</strong><small>@{request.username}</small></span></a><form method="POST" action="?/respondFollow"><input type="hidden" name="requesterId" value={request.userId}/><button name="decision" value="accept">Godta</button><button class="quiet" name="decision" value="reject">Avslå</button></form></article>{/each}</section>{/if}
+      {#if data.activityNotifications.length}<section class="section-card notification-list"><h2>Aktivitet</h2>{#each data.activityNotifications as notification}<a class:unread={!notification.isRead} href={notification.postId ? `/innlegg/${notification.postId}` : `/bruker/${notification.actorUsername}`}><span>{#if notification.type === 'comment'}<MessageCircle size={18}/>{:else}<Heart size={18}/>{/if}</span><div><p><strong>{notification.actorName}</strong> {notification.type === 'comment' ? 'kommenterte på innlegget ditt.' : 'likte innlegget ditt.'}</p><small>@{notification.actorUsername} · {notification.createdAt.toLocaleString('nb-NO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</small></div>{#if !notification.isRead}<i aria-label="Ulest"></i>{/if}</a>{/each}</section>{:else if !data.followRequests.length}<section class="section-card section-empty"><Bell size={34}/><h2>Ingen varsler ennå</h2><p>Når noen følger deg, kommenterer eller liker et innlegg, vises det her.</p></section>{/if}
+    {:else if data.section === 'innstillinger'}
+      {@const user = data.user}
+      <h1>Innstillinger</h1><p class="section-intro">Administrer profil, konto og medlemskap.</p>
+      {#if user}
+        <div class="settings-workspace"><nav class="settings-nav" aria-label="Innstillingskategorier"><button class:active={settingsCategory === 'profil'} aria-current={settingsCategory === 'profil' ? 'page' : undefined} onclick={() => selectSettingsCategory('profil')}><UserRound size={18}/><span><strong>Profil</strong><small>Bilder og profiltekst</small></span></button><button class:active={settingsCategory === 'konto'} aria-current={settingsCategory === 'konto' ? 'page' : undefined} onclick={() => selectSettingsCategory('konto')}><ShieldCheck size={18}/><span><strong>Konto</strong><small>Medlemskap og konto</small></span></button><button class:active={settingsCategory === 'personvern'} aria-current={settingsCategory === 'personvern' ? 'page' : undefined} onclick={() => selectSettingsCategory('personvern')}><ShieldCheck size={18}/><span><strong>Personvern</strong><small>Innhold og varsler</small></span></button></nav><div class="settings-content">
+        {#if settingsCategory === 'profil'}
+        <section id="profil" class="section-card account-settings"><h2>Profil</h2><p class="settings-help">Dette vises på profilsiden din.</p><form method="POST" action="?/updateProfile" enctype="multipart/form-data" use:enhance={submitProfile}><div class="image-fields"><label>Profilbilde<span>{preparedAvatar ? `Klargjort · ${(preparedAvatar.size / 1024 / 1024).toFixed(1)} MB` : data.profileImages.avatar ? 'Bytt bilde' : 'Velg bilde'}</span><input name="avatar" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={(event) => prepareProfileImage(event, 'avatar')}/></label><label>Forsidebilde<span>{preparedCover ? `Klargjort · ${(preparedCover.size / 1024 / 1024).toFixed(1)} MB` : data.profileImages.cover ? 'Bytt bilde' : 'Velg bilde'}</span><input name="cover" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" onchange={(event) => prepareProfileImage(event, 'cover')}/></label></div><label class="bio-label">Om deg<textarea name="bio" maxlength="300" rows="4" placeholder="Fortell kort hvem du er …">{data.profileBio ?? ''}</textarea></label><fieldset class="visibility-setting"><legend>Hvem kan følge deg?</legend><label><input type="radio" name="profileVisibility" value="private" checked={data.profileVisibility === 'private'}/><span><strong>Privat</strong><small>Du godkjenner følgeforespørsler.</small></span></label><label><input type="radio" name="profileVisibility" value="public" checked={data.profileVisibility === 'public'}/><span><strong>Åpen</strong><small>Andre kan følge deg med én gang.</small></span></label></fieldset>{#if profileUploadError}<p class="form-error" role="alert">{profileUploadError}</p>{/if}<button disabled={!!preparingImages || savingProfile || !!profileUploadError}>{preparingImages ? 'Klargjør bilde …' : savingProfile ? 'Laster opp …' : 'Lagre profil'}</button></form>{#if form?.profileError}<p class="form-error">{form.profileError}</p>{:else if form?.profileSaved}<p class="form-success">Profilen er lagret.</p>{/if}<a class="view-profile" href={`/bruker/${user.username}`}>Se profilen din</a></section>
+        {:else if settingsCategory === 'konto'}
+        <section id="konto" class="section-card"><h2>Konto og medlemskap</h2><div class="profile-details"><p><strong>{user.realName}</strong><br/><span>@{user.username}</span></p><p>{user.email}</p><p><ShieldCheck size={16}/> Alpha-konto med e-post</p></div><div class="profile-actions"><a href="/minner">Minner på denne dagen</a><a href="/priser">Se abonnement</a><form method="POST" action="?/logout"><button>Logg ut</button></form></div></section>
+        <details class="section-card danger-zone"><summary>Slett konto og innhold</summary><p>Dette sletter kontoen, følgerelasjoner, innlegg og opplastede bilder permanent.</p><form method="POST" action="?/deleteAccount"><label>Skriv SLETT for å bekrefte<input name="confirmation" autocomplete="off" required/></label><button>Slett kontoen permanent</button></form>{#if form?.deleteError}<p class="form-error">{form.deleteError}</p>{/if}</details>
+        {:else}
+        <section id="personvern" class="section-card preference-settings"><header><div><span>Personvern</span><h2>Personvern og varsler</h2></div><ShieldCheck size={23}/></header><p class="settings-help">Velg hva du vil se og hvilke hendelser Samvio skal varsle deg om.</p><form method="POST" action="?/updatePreferences"><fieldset><legend>Innhold</legend><label><span class="setting-copy"><strong>Skjul kommersielt innhold</strong><small>Fjern merkede reklame- og sponsorinnlegg fra feeden.</small></span><input class="toggle-input" type="checkbox" name="hideCommercialContent" checked={data.preferences.hideCommercialContent}/><span class="toggle" aria-hidden="true"></span></label></fieldset><fieldset><legend>Varsler</legend><label><span class="setting-copy"><strong>Følgeforespørsler</strong><small>Varsle når noen ønsker å følge deg.</small></span><input class="toggle-input" type="checkbox" name="notifyFollows" checked={data.preferences.notifyFollows}/><span class="toggle" aria-hidden="true"></span></label><label><span class="setting-copy"><strong>Kommentarer</strong><small>Varsle om nye kommentarer på innleggene dine.</small></span><input class="toggle-input" type="checkbox" name="notifyComments" checked={data.preferences.notifyComments}/><span class="toggle" aria-hidden="true"></span></label><label><span class="setting-copy"><strong>Likerklikk</strong><small>Varsle når noen liker innleggene dine.</small></span><input class="toggle-input" type="checkbox" name="notifyReactions" checked={data.preferences.notifyReactions}/><span class="toggle" aria-hidden="true"></span></label></fieldset><div class="preference-footer"><button>Lagre innstillinger</button>{#if form?.preferencesSaved}<p class="form-success">Valgene er lagret.</p>{/if}</div></form></section>
+        {/if}
+        </div></div>
+      {/if}
     {:else}
       {@const section = copy[data.section]}
       <h1>{section.title}</h1><p class="section-intro">{section.intro}</p>
-      <section class="section-card section-empty">{#if data.section === 'utforsk'}<Compass size={36}/>{:else if data.section === 'videoer'}<Video size={36}/>{:else if data.section === 'meldinger'}<MessageCircle size={36}/>{:else}<Bell size={36}/>{/if}<h2>{section.emptyTitle}</h2><p>{section.emptyText}</p></section>
+      <section class="section-card section-empty"><ShieldCheck size={36}/><h2>{section.emptyTitle}</h2><p>{section.emptyText}</p></section>
     {/if}
   </div>
+  <style>.preference-settings{margin-top:16px;overflow:hidden;padding:0}.preference-settings>header{display:flex;align-items:center;justify-content:space-between;padding:21px 22px 15px;background:linear-gradient(120deg,#edf4f0,#faf4ea);color:#315d49}.preference-settings>header div>span{font-size:9px;font-weight:800;letter-spacing:.11em;text-transform:uppercase}.preference-settings h2{margin:3px 0 0;color:#1d2420;font:600 23px 'Newsreader',serif}.preference-settings>.settings-help{margin:0;padding:15px 22px 4px}.preference-settings form{display:grid;gap:17px;padding:14px 22px 22px}.preference-settings fieldset{display:grid;margin:0;padding:0;border:1px solid #e3dfd6;border-radius:13px;background:#fff}.preference-settings legend{margin-left:12px;padding:0 7px;color:#777;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.preference-settings fieldset>label{position:relative;display:flex;align-items:center;gap:14px;min-height:72px;padding:13px 15px;cursor:pointer}.preference-settings fieldset>label+label{border-top:1px solid #ece9e2}.setting-copy{min-width:0;display:grid;gap:4px;flex:1}.setting-copy strong{font-size:13px}.setting-copy small{color:#6f716e;font-size:11px;line-height:1.4}.toggle-input{position:absolute;width:1px;height:1px;opacity:0}.toggle{position:relative;width:44px;height:25px;flex:none;border-radius:999px;background:#c9ccc9;box-shadow:inset 0 0 0 1px #b9bdb9;transition:.18s}.toggle::after{content:'';position:absolute;top:3px;left:3px;width:19px;height:19px;border-radius:50%;background:#fff;box-shadow:0 2px 5px #0002;transition:.18s}.toggle-input:checked+.toggle{background:#315d49;box-shadow:inset 0 0 0 1px #315d49}.toggle-input:checked+.toggle::after{transform:translateX(19px)}.toggle-input:focus-visible+.toggle{outline:3px solid #b7d2c3;outline-offset:2px}.preference-footer{display:flex;align-items:center;gap:13px}.preference-footer button{padding:10px 15px;border:0;border-radius:9px;background:#315d49;color:#fff;font-weight:800}.preference-footer p{margin:0}@media(max-width:520px){.preference-settings>header,.preference-settings>.settings-help,.preference-settings form{padding-left:16px;padding-right:16px}.preference-settings fieldset>label{min-height:78px}.setting-copy small{max-width:220px}}</style>
+  <style>.settings-workspace{display:grid;grid-template-columns:190px minmax(0,1fr);align-items:start;gap:18px}.settings-workspace .settings-nav{position:sticky;top:18px;display:grid;gap:5px;margin:0;padding:8px;border:1px solid #ddd9d0;border-radius:14px;background:#fff}.settings-workspace .settings-nav button{display:flex;align-items:center;gap:10px;width:100%;padding:11px;border:0;border-radius:9px;background:transparent;color:#68706b;text-align:left}.settings-workspace .settings-nav button:hover{background:#f5f2ec}.settings-workspace .settings-nav button.active{background:linear-gradient(120deg,#e7f1eb,#f8f0e5);color:#315d49}.settings-workspace .settings-nav button>span{display:grid;gap:2px}.settings-workspace .settings-nav strong{font-size:12px}.settings-workspace .settings-nav small{color:#858984;font-size:9px}.settings-content>.section-card:first-child,.settings-content>.preference-settings{margin-top:0}.settings-content .danger-zone{margin-top:14px}@media(max-width:650px){.settings-workspace{display:block}.settings-workspace .settings-nav{top:calc(58px + env(safe-area-inset-top));z-index:4;display:flex;gap:5px;margin-bottom:14px;padding:6px;overflow-x:auto;background:#fffdfaf2;backdrop-filter:blur(12px)}.settings-workspace .settings-nav button{min-width:max-content;justify-content:center;padding:10px 13px}.settings-workspace .settings-nav button>span{display:block}.settings-workspace .settings-nav small{display:none}}</style>
+  <style>.settings-shell{width:min(900px,100%)}.settings-content{min-width:0}.settings-content .section-card{max-width:100%}.settings-content .image-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.settings-content .image-fields label{min-width:0;overflow:hidden}.settings-content .image-fields input[type="file"]{display:block;width:100%;min-width:0}.settings-content textarea{width:100%;max-width:100%}@media(max-width:820px){.settings-workspace{display:block}.settings-workspace .settings-nav{position:sticky;top:calc(58px + env(safe-area-inset-top));z-index:4;display:flex;gap:5px;margin-bottom:14px;padding:6px;overflow-x:auto;background:#fffdfaf2;backdrop-filter:blur(12px)}.settings-workspace .settings-nav button{min-width:max-content;justify-content:center;padding:10px 13px}.settings-workspace .settings-nav button>span{display:block}.settings-workspace .settings-nav small{display:none}}@media(max-width:560px){.settings-content .image-fields{grid-template-columns:1fr}}</style>
+  <style>.notification-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.notification-heading form button{padding:9px 12px;border:1px solid #d5d9d6;border-radius:9px;background:#fff;color:#315d49;font-size:10px;font-weight:800}.notification-list{margin-top:14px}.notification-list h2{margin-top:0;font-size:16px}.notification-list>a{position:relative;display:grid;grid-template-columns:38px 1fr auto;align-items:center;gap:11px;padding:14px 4px;border-top:1px solid #ece9e2}.notification-list>a>span{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:#edf3ef;color:#315d49}.notification-list p{margin:0;font-size:12px;line-height:1.45}.notification-list small{color:#7b807c;font-size:10px}.notification-list i{width:8px;height:8px;border-radius:50%;background:#b76538}.notification-list a.unread{margin:0 -10px;padding-left:14px;padding-right:14px;border-radius:10px;background:#faf5ed}@media(max-width:520px){.notification-heading{display:block}.notification-heading form{margin:-14px 0 16px}.notification-list>a{grid-template-columns:34px 1fr auto}}</style>
 </main>
 
-<nav class="mobile-nav" aria-label="Mobilmeny"><a href="/" aria-label="Hjem"><Home size={24}/></a><a href="/sok" aria-label="Søk"><Search size={24}/></a><a href="/?opprett=1" aria-label="Opprett"><PlusSquare size={24}/></a><a href="/videoer" aria-label="Videoer"><Video size={24}/></a><a href="/profil" aria-label="Profil"><UserRound size={24}/></a></nav>
+<style>.request-list h2{margin-top:0;font-size:16px}.request-list article{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid #ece9e2}.request-list article>a{display:flex;align-items:center;gap:10px}.request-list article>a>span{display:grid}.request-list small{color:#777}.request-list form{display:flex;gap:6px}.request-list button{padding:8px 11px;border:1px solid #315d49;border-radius:8px;background:#315d49;color:#fff;font-size:11px;font-weight:700}.request-list button.quiet{border-color:#d5d2ca;background:#fff;color:#555}@media(max-width:520px){.request-list article{align-items:flex-start;flex-direction:column}.request-list form{width:100%}.request-list button{flex:1}}</style>

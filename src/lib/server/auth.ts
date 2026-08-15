@@ -15,10 +15,13 @@ export async function createSession(userId: string) {
 }
 
 export async function getSessionUser(token: string) {
-  const [row] = await db.select({ id: users.id, email: users.email, username: profiles.username, realName: profiles.realName })
+  const [row] = await db.select({ id: users.id, email: users.email, username: profiles.username, realName: profiles.realName, role: users.accountRole, status: users.accountStatus, lastSeenAt: users.lastSeenAt })
     .from(sessions).innerJoin(users, eq(sessions.userId, users.id)).leftJoin(profiles, eq(profiles.userId, users.id))
     .where(and(eq(sessions.id, hashToken(token)), gt(sessions.expiresAt, new Date()))).limit(1);
-  return row ?? null;
+  if (!row || row.status === 'suspended' || row.status === 'deleted') return null;
+  if (!row.lastSeenAt || row.lastSeenAt.getTime() < Date.now() - 5 * 60_000) await db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, row.id));
+  const { status: _status, lastSeenAt: _lastSeenAt, ...user } = row;
+  return user;
 }
 
 export async function deleteSession(token: string) { await db.delete(sessions).where(eq(sessions.id, hashToken(token))); }

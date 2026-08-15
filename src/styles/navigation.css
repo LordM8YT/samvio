@@ -4,6 +4,38 @@
   text-decoration: none;
 }
 
+.samvio-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(470px, 630px) 320px;
+  justify-content: center;
+  gap: 42px;
+  padding-left: 0;
+  background: #faf9f7;
+}
+
+.brand-mark {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px 4px 9px 4px;
+  background: #315d49;
+  color: #fff;
+  font: 700 15px/1 'DM Sans', sans-serif;
+  transform: rotate(-4deg);
+}
+
+.feed-end {
+  justify-content: flex-start;
+  padding: 22px 4px 36px;
+  border-top: 1px solid #efefef;
+}
+
+.feed-end > div { display: grid; gap: 2px; }
+.feed-end strong { color: #315d49; font-size: 12px; }
+.feed-end a { margin-left: auto; color: #315d49; font-weight: 700; }
+
 .main-nav nav a {
   display: flex;
   align-items: center;
@@ -30,7 +62,7 @@
 
 .section-layout {
   min-height: 100vh;
-  margin-left: 245px;
+  margin-left: 0;
   padding: 48px 32px 90px;
 }
 
@@ -50,19 +82,70 @@
 .search-form button, .profile-actions a, .profile-actions button { padding: 10px 15px; border: 0; border-radius: 8px; background: #315d49; color: #fff; font: inherit; font-weight: 700; text-decoration: none; cursor: pointer; }
 .search-results { display: grid; gap: 8px; }
 .person-row { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid #e6e6e6; border-radius: 8px; }
-.person-row span:first-child { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: #eee; }
+.person-row>a:first-child { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; background: #eee; }
 .person-row div { display: grid; }
+.person-row div a { display: grid; }
 .person-row small { color: #737373; }
+.person-row form { margin-left: auto; }
+.person-row form button { width: auto; height: auto; padding: 8px 12px; border: 1px solid #315d49; border-radius: 8px; background: #315d49; color: #fff; font-size: 12px; font-weight: 700; }
+.person-row form button:disabled { cursor: default; border-color: #b8c2bc; background: #edf1ee; color: #5f6963; }
 .profile-details { display: grid; gap: 12px; }
 .profile-details p { margin: 0; }
 .profile-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+.info-copy { display: grid; gap: 15px; line-height: 1.65; }
+.info-copy p { margin: 0; }
 .profile-actions button { background: #fff; color: #222; border: 1px solid #cfcfcf; }
 
 @media (max-width: 1160px) {
+  .samvio-shell { grid-template-columns: minmax(470px,630px) 290px; padding-left: 0; gap: 30px; }
   .main-nav nav a span { display: none; }
 }
 
+@media (max-width: 920px) {
+  .samvio-shell { grid-template-columns: minmax(470px,630px); padding-left: 0; }
+}
+
 @media (max-width: 700px) {
+  .samvio-shell { display: block; padding: 0; }
   .section-layout { margin-left: 0; padding: 76px 15px 74px; }
   .search-form { flex-direction: column; }
+  .feed-end { padding: 20px 15px 32px; }
 }
+.account-settings,.danger-zone { margin-top: 16px; }
+.account-settings h2 { margin-top: 0; font-size: 18px; }
+.account-settings form,.danger-zone form { display: grid; gap: 10px; }
+.account-settings textarea,.danger-zone input { padding: 11px; border: 1px solid #d6d4ce; border-radius: 8px; font: inherit; }
+.account-settings textarea { resize: none; }
+.account-settings button { width: max-content; padding: 9px 14px; border: 0; border-radius: 8px; background: #315d49; color: #fff; font-weight: 700; }
+.form-success { color: #315d49; font-size: 13px; }
+.danger-zone summary { cursor: pointer; font-weight: 700; }
+.danger-zone p { color: #696969; font-size: 13px; }
+.danger-zone label { display: grid; gap: 6px; font-size: 12px; font-weight: 700; }
+.danger-zone button { width: max-content; padding: 9px 14px; border: 1px solid #a13e32; border-radius: 8px; background: #fff; color: #a13e32; font-weight: 700; }
+.settings-nav { position: sticky; top: 14px; z-index: 2; display: flex; gap: 8px; margin-bottom: 16px; padding: 7px; border: 1px solid #dedbd3; border-radius: 12px; background: #fffdfaeF; backdrop-filter: blur(12px); }
+.settings-nav a { padding: 8px 12px; border-radius: 8px; color: #315d49; font-size: 12px; font-weight: 700; }
+.settings-nav a:hover { background: #edf3ef; }
+.settings-help { margin: -5px 0 18px; color: #6d716e; font-size: 13px; line-height: 1.55; }
+.image-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.image-fields label { display: grid; gap: 7px; padding: 14px; border: 1px dashed #b9c4bd; border-radius: 10px; background: #f7faf8; font-size: 13px; font-weight: 700; }
+.image-fields label span { color: #315d49; font-size: 11px; }
+.image-fields input { max-width: 100%; font-size: 11px; }
+.bio-label { display: grid; gap: 7px; font-size: 13px; font-weight: 700; }
+.visibility-setting { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0; padding: 0; border: 0; }
+.visibility-setting legend { grid-column: 1 / -1; margin-bottom: 2px; font-size: 12px; font-weight: 700; }
+.visibility-setting label { position: relative; cursor: pointer; }
+.visibility-setting input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.visibility-setting label > span { height: 100%; display: grid; gap: 3px; padding: 12px; border: 1px solid #d9d7d0; border-radius: 9px; color: #676d68; }
+.visibility-setting small { color: #7c817d; font-size: 10px; font-weight: 400; }
+.visibility-setting input:checked + span { border-color: #315d49; background: #edf4f0; color: #315d49; box-shadow: 0 0 0 1px #315d49; }
+.view-profile { display: inline-block; margin-top: 16px; color: #315d49; font-size: 13px; font-weight: 700; }
+@media(max-width:560px){.image-fields,.visibility-setting{grid-template-columns:1fr}.settings-nav{top:calc(58px + env(safe-area-inset-top));overflow-x:auto}}
+
+.main-nav{background:linear-gradient(180deg,#fff 0%,#fffdfa 68%,#f2f7f4 100%)}
+.main-nav nav a{transition:background .16s ease,color .16s ease,transform .16s ease}
+.main-nav nav a:hover{background:#f6efe5;color:#8f4d2d;transform:translateX(2px)}
+.main-nav nav a.active{background:linear-gradient(105deg,#e8f1eb,#f7f0e4);color:#244839}
+.brand-mark{background:linear-gradient(145deg,#315d49,#244839);box-shadow:0 5px 14px #315d4933}
+.mobile-header{background:#fffdfaf2;backdrop-filter:blur(14px)}
+.mobile-nav{background:#fffdfaf2;backdrop-filter:blur(14px)}
+.mobile-nav a.active{background:linear-gradient(145deg,#e6f0ea,#f7ebdc);color:#315d49}
