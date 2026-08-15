@@ -13,8 +13,10 @@ export const users = mysqlTable('users', {
   accountRole: mysqlEnum('account_role', ['user', 'moderator', 'admin']).notNull().default('user'),
   mutedUntil: timestamp('muted_until', { mode: 'date' }),
   lastSeenAt: timestamp('last_seen_at', { mode: 'date', fsp: 6 }),
+  acquisitionSource: varchar('acquisition_source', { length: 40 }),
+  referredByUserId: char('referred_by_user_id', { length: 36 }),
   ...timestamps
-}, (t) => [uniqueIndex('uq_users_email').on(t.email), index('idx_users_account_role').on(t.accountRole)]);
+}, (t) => [uniqueIndex('uq_users_email').on(t.email), index('idx_users_account_role').on(t.accountRole), index('idx_users_acquisition_source').on(t.acquisitionSource), index('idx_users_referred_by').on(t.referredByUserId)]);
 
 export const profiles = mysqlTable('profiles', {
   userId: char('user_id', { length: 36 }).primaryKey().references(() => users.id, { onDelete: 'cascade' }),
@@ -23,10 +25,20 @@ export const profiles = mysqlTable('profiles', {
   bio: varchar('bio', { length: 300 }),
   avatarPath: varchar('avatar_path', { length: 500 }),
   coverPath: varchar('cover_path', { length: 500 }),
+  profileVisibility: mysqlEnum('profile_visibility', ['private', 'public']).notNull().default('private'),
+  onboardingCompletedAt: timestamp('onboarding_completed_at', { mode: 'date', fsp: 6 }),
   ageBand: mysqlEnum('age_band', ['child', 'teen', 'adult']).notNull(),
   isIdentityVerified: boolean('is_identity_verified').notNull().default(false),
   ...timestamps
 }, (t) => [uniqueIndex('uq_profiles_username').on(t.username)]);
+
+export const acquisitionDaily = mysqlTable('acquisition_daily', {
+  eventDate: date('event_date', { mode: 'string' }).notNull(),
+  source: varchar('source', { length: 40 }).notNull(),
+  visits: int('visits', { unsigned: true }).notNull().default(0),
+  registrations: int('registrations', { unsigned: true }).notNull().default(0),
+  updatedAt: timestamp('updated_at', { mode: 'date', fsp: 6 }).notNull().defaultNow().onUpdateNow()
+}, (t) => [primaryKey({ columns: [t.eventDate, t.source] })]);
 
 export const sessions = mysqlTable('sessions', {
   id: char('id', { length: 64 }).primaryKey(),

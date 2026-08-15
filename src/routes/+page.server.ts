@@ -49,9 +49,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
   try {
     const feedWindowEnd = new Date();
-    const [[state], [preference], blockRows] = await Promise.all([
+    const [[state], [preference], [onboarding], blockRows] = await Promise.all([
       db.select({ caughtUpAt: userFeedState.caughtUpAt }).from(userFeedState).where(eq(userFeedState.userId, locals.user.id)).limit(1),
       db.select({ hideCommercial: userPreferences.hideCommercialContent }).from(userPreferences).where(eq(userPreferences.userId, locals.user.id)).limit(1),
+      db.select({ completedAt: profiles.onboardingCompletedAt }).from(profiles).where(eq(profiles.userId, locals.user.id)).limit(1),
       db.select({ blockerId: userBlocks.blockerId, blockedId: userBlocks.blockedId }).from(userBlocks).where(or(eq(userBlocks.blockerId, locals.user.id), eq(userBlocks.blockedId, locals.user.id)))
     ]);
     const blockedIds = blockRows.map((row) => row.blockerId === locals.user!.id ? row.blockedId : row.blockerId);
@@ -82,9 +83,9 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     const likedIds = new Set(likedRows.map((row) => row.postId));
     const feedPosts = rows.map((post) => ({ ...post, liked: likedIds.has(post.id) }));
     const peopleCount = new Set(rows.map((post) => post.authorUsername)).size;
-    return { user: locals.user, posts: feedPosts, openComposer, caughtUpAt: state?.caughtUpAt ?? null, feedWindowEnd: rows.length < 500 ? feedWindowEnd : null, peopleCount, vippsLoginEnabled };
+    return { user: locals.user, posts: feedPosts, openComposer, caughtUpAt: state?.caughtUpAt ?? null, feedWindowEnd: rows.length < 500 ? feedWindowEnd : null, peopleCount, onboardingComplete: !!onboarding?.completedAt, vippsLoginEnabled };
   } catch {
-    return { user: locals.user, posts: [], openComposer, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0, feedError: true, vippsLoginEnabled };
+    return { user: locals.user, posts: [], openComposer, caughtUpAt: null, feedWindowEnd: null, peopleCount: 0, onboardingComplete: true, feedError: true, vippsLoginEnabled };
   }
 };
 

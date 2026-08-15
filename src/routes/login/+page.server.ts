@@ -8,11 +8,12 @@ import { db } from '$lib/server/db';
 import { profiles, userPreferences, users } from '$lib/server/db/schema';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import { isVippsLoginEnabled } from '$lib/server/vipps/config';
+import { readAcquisition, recordRegistration } from '$lib/server/acquisition';
 import type { Actions, PageServerLoad } from './$types';
 
 const loginSchema = z.object({ email: z.string().trim().email().transform((v) => v.toLowerCase()), password: z.string().min(8).max(128) });
 const registerSchema = loginSchema.extend({ realName: z.string().trim().min(2).max(120), username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,30}$/), birthDate: z.coerce.date().max(new Date()) });
-const nextPath = (url: URL) => { const next = url.searchParams.get('next'); return next?.startsWith('/') && !next.startsWith('//') ? next : '/'; };
+const nextPath = (url: URL, fallback = '/') => { const next = url.searchParams.get('next'); return next?.startsWith('/') && !next.startsWith('//') ? next : fallback; };
 
 export const load: PageServerLoad = ({ locals, url }) => {
   if (locals.user) redirect(303, nextPath(url));
@@ -40,13 +41,16 @@ export const actions: Actions = {
     if (age < 13) return fail(400, { mode: 'register', message: 'Samvio alpha er foreløpig bare tilgjengelig fra 13 år.' });
     const ageBand = age < 13 ? 'child' : age < 18 ? 'teen' : 'adult';
     const id = randomUUID();
+    const acquisition = readAcquisition(cookies);
     try {
+      const [referrer] = acquisition.inviter ? await db.select({ userId: profiles.userId }).from(profiles).where(eq(profiles.username, acquisition.inviter)).limit(1) : [];
       await db.transaction(async (tx) => {
-        await tx.insert(users).values({ id, email: parsed.data.email, passwordHash: await hash(parsed.data.password, 12), accountStatus: 'active' });
+        await tx.insert(users).values({ id, email: parsed.data.email, passwordHash: await hash(parsed.data.password, 12), accountStatus: 'active', acquisitionSource: acquisition.source, referredByUserId: referrer?.userId ?? null });
         await tx.insert(profiles).values({ userId: id, realName: parsed.data.realName, username: parsed.data.username, ageBand });
         await tx.insert(userPreferences).values({ userId: id, hideCommercialContent: ageBand !== 'adult' });
       });
-      const token = await createSession(id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, nextPath(url));
+      await recordRegistration(acquisition.source).catch(() => undefined);
+      const token = await createSession(id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, nextPath(url, '/kom-i-gang'));
     } catch (error) { if (isRedirect(error)) throw error; return fail(409, { mode: 'register', message: 'E-post eller brukernavn er allerede i bruk, eller databasen mangler.' }); }
   }
 };

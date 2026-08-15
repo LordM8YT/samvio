@@ -131,8 +131,15 @@
 .image-fields label span { color: #315d49; font-size: 11px; }
 .image-fields input { max-width: 100%; font-size: 11px; }
 .bio-label { display: grid; gap: 7px; font-size: 13px; font-weight: 700; }
+.visibility-setting { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 0; padding: 0; border: 0; }
+.visibility-setting legend { grid-column: 1 / -1; margin-bottom: 2px; font-size: 12px; font-weight: 700; }
+.visibility-setting label { position: relative; cursor: pointer; }
+.visibility-setting input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.visibility-setting label > span { height: 100%; display: grid; gap: 3px; padding: 12px; border: 1px solid #d9d7d0; border-radius: 9px; color: #676d68; }
+.visibility-setting small { color: #7c817d; font-size: 10px; font-weight: 400; }
+.visibility-setting input:checked + span { border-color: #315d49; background: #edf4f0; color: #315d49; box-shadow: 0 0 0 1px #315d49; }
 .view-profile { display: inline-block; margin-top: 16px; color: #315d49; font-size: 13px; font-weight: 700; }
-@media(max-width:560px){.image-fields{grid-template-columns:1fr}.settings-nav{top:calc(58px + env(safe-area-inset-top));overflow-x:auto}}
+@media(max-width:560px){.image-fields,.visibility-setting{grid-template-columns:1fr}.settings-nav{top:calc(58px + env(safe-area-inset-top));overflow-x:auto}}
 
 .main-nav{background:linear-gradient(180deg,#fff 0%,#fffdfa 68%,#f2f7f4 100%)}
 .main-nav nav a{transition:background .16s ease,color .16s ease,transform .16s ease}

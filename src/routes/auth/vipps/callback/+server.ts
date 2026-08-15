@@ -5,6 +5,7 @@ import { createSession, sessionCookieOptions, SESSION_COOKIE } from '$lib/server
 import { db } from '$lib/server/db';
 import { profiles, userPreferences, users, verifications } from '$lib/server/db/schema';
 import { exchangeVippsCode, getVippsUserInfo } from '$lib/server/vipps/login';
+import { readAcquisition, recordRegistration } from '$lib/server/acquisition';
 import type { RequestHandler } from './$types';
 
 const safeNext = (value: string | undefined) => value?.startsWith('/') && !value.startsWith('//') ? value : '/';
@@ -62,11 +63,14 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         userId = randomUUID();
         const realName = (info.name?.trim() || email.split('@')[0]).slice(0, 120);
         const username = await availableUsername(realName);
+        const acquisition = readAcquisition(cookies);
+        const [referrer] = acquisition.inviter ? await db.select({ userId: profiles.userId }).from(profiles).where(eq(profiles.username, acquisition.inviter)).limit(1) : [];
         await db.transaction(async (tx) => {
-          await tx.insert(users).values({ id: userId!, email, passwordHash: null, accountStatus: 'active' });
+          await tx.insert(users).values({ id: userId!, email, passwordHash: null, accountStatus: 'active', acquisitionSource: acquisition.source, referredByUserId: referrer?.userId ?? null });
           await tx.insert(profiles).values({ userId: userId!, realName, username, ageBand });
           await tx.insert(userPreferences).values({ userId: userId!, hideCommercialContent: ageBand !== 'adult' });
         });
+        await recordRegistration(acquisition.source).catch(() => undefined);
       }
       await db.insert(verifications).values({ id: randomUUID(), userId, provider: 'vipps', providerSubject: info.sub, status: 'verified', birthDate: info.birthdate ?? null, assuranceLevel: 'vipps-login', identityVerifiedAt: new Date(), providerMetadata: { emailVerified: info.email_verified ?? null } });
     }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { enhance } from '$app/forms';
   import type { SubmitFunction } from '@sveltejs/kit';
-  import { ArrowRight, Clock3, HeartHandshake, LockKeyhole, PlusSquare, ShieldCheck, UserRound, X } from '@lucide/svelte';
+  import { ArrowRight, Clock3, HeartHandshake, LockKeyhole, PlusSquare, ShieldCheck, Sparkles, UserRound, X } from '@lucide/svelte';
   import PostCard from '$lib/components/PostCard.svelte';
   import { compressImage } from '$lib/client/compress-image';
   let { data, form } = $props();
@@ -113,6 +113,7 @@
 {:else}
 <div class="samvio-shell">
   <main class="feed-column">
+    {#if data.onboardingComplete === false}<a class="onboarding-reminder" href="/kom-i-gang"><span><Sparkles size={19}/></span><div><strong>Gjør Samvio til ditt</strong><small>Fullfør profilen, finn mennesker og få din personlige invitasjonslenke.</small></div><ArrowRight size={18}/></a>{/if}
     {#if data.user}<section class="quick-share"><div class="quick-avatar"><UserRound size={20}/></div><button onclick={() => composerOpen = true}>Del et bilde eller øyeblikk …</button><PlusSquare size={20}/></section>{/if}
     <section class="feed-label"><div><h1>Siden sist</h1><span><i></i>Kronologisk · Ingen anbefalinger</span></div><p>{data.posts.length} nye øyeblikk fra {data.peopleCount} {data.peopleCount === 1 ? 'person' : 'personer'}.</p></section>
 
@@ -147,4 +148,5 @@
   .commercial-toggle{display:flex!important;grid-template-columns:none!important;align-items:flex-start;gap:10px!important;padding:12px;border:1px solid #dfd8cb;border-radius:9px;background:#faf6ef}.commercial-toggle input{width:18px;height:18px;margin:1px 0}.commercial-toggle span{display:grid;gap:2px}.commercial-toggle small{color:#777;font-weight:400;line-height:1.4}.composer label>input:not([type=file]):not([type=checkbox]){padding:10px;border:1px solid #d6d6d6;border-radius:7px;font:13px 'DM Sans',sans-serif}
   @media(max-width:850px){.landing-hero{grid-template-columns:1fr;padding-top:55px;gap:65px}.hero-preview{width:min(560px,100%);margin:auto}.landing-values{grid-template-columns:1fr}.landing-values article{padding:19px 5px}.landing-values article+article{border-left:0;border-top:1px solid #ded9ce}.public-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:600px){.landing-nav{height:68px}.landing-nav>div>a:not(.nav-login){display:none}.landing-nav>div{gap:0}.landing-hero{width:min(100% - 28px,1180px);padding:45px 0 58px}.hero-copy h1{font-size:46px;letter-spacing:-2px}.hero-lead{font-size:15px}.hero-actions{align-items:stretch;flex-direction:column}.secondary-cta{text-align:center}.hero-preview{padding:14px;border-radius:19px}.preview-photo{height:210px}.landing-values,.public-preview,.landing-footer{width:min(100% - 28px,1180px)}.public-preview{padding:60px 0}.public-preview h2{font-size:32px}.public-grid{grid-template-columns:1fr}.public-preview>header{align-items:start}.landing-footer{align-items:flex-start;flex-wrap:wrap}.landing-footer p{width:calc(100% - 80px);margin:7px 0}.landing-footer nav{width:100%;margin:0}.landing-page{padding-bottom:env(safe-area-inset-bottom)}}
+  .onboarding-reminder{display:flex;align-items:center;gap:11px;margin:8px 0 14px;padding:13px;border:1px solid #d7c9b9;border-radius:14px;background:linear-gradient(120deg,#f3dfcc,#e8f2ec);color:#315d49;box-shadow:0 8px 25px #26382f0b}.onboarding-reminder>span{width:40px;height:40px;display:grid;place-items:center;flex:none;border-radius:12px;background:#315d49;color:#fff}.onboarding-reminder>div{min-width:0;display:grid;gap:3px;flex:1}.onboarding-reminder strong{font-size:12px}.onboarding-reminder small{color:#667169;font-size:10px;line-height:1.4}@media(max-width:700px){.onboarding-reminder{margin:0;padding:11px 14px;border-width:0 0 1px;border-radius:0;box-shadow:none}}
 </style>

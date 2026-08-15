@@ -43,17 +43,19 @@ export const load: PageServerLoad = async ({ params, url, locals }) => {
   }
 
   let profileBio: string | null = null;
+  let profileVisibility: 'private' | 'public' = 'private';
   let profileImages = { avatar: false, cover: false };
   let preferences = { hideCommercialContent: false, notifyFollows: true, notifyComments: true, notifyReactions: true };
   if (params.section === 'innstillinger' && locals.user) {
-    const [profile] = await db.select({ bio: profiles.bio, avatarPath: profiles.avatarPath, coverPath: profiles.coverPath }).from(profiles).where(eq(profiles.userId, locals.user.id)).limit(1);
+    const [profile] = await db.select({ bio: profiles.bio, avatarPath: profiles.avatarPath, coverPath: profiles.coverPath, profileVisibility: profiles.profileVisibility }).from(profiles).where(eq(profiles.userId, locals.user.id)).limit(1);
     profileBio = profile?.bio ?? null;
+    profileVisibility = profile?.profileVisibility ?? 'private';
     profileImages = { avatar: !!profile?.avatarPath, cover: !!profile?.coverPath };
     const [savedPreferences] = await db.select().from(userPreferences).where(eq(userPreferences.userId, locals.user.id)).limit(1);
     if (savedPreferences) preferences = { hideCommercialContent: savedPreferences.hideCommercialContent, notifyFollows: savedPreferences.notifyFollows, notifyComments: savedPreferences.notifyComments, notifyReactions: savedPreferences.notifyReactions };
   }
 
-  return { section: params.section, user: locals.user, query, results, followRequests, activityNotifications, profileBio, profileImages, preferences };
+  return { section: params.section, user: locals.user, query, results, followRequests, activityNotifications, profileBio, profileVisibility, profileImages, preferences };
 };
 
 export const actions: Actions = {
@@ -66,7 +68,9 @@ export const actions: Actions = {
     if (!locals.user) redirect(303, '/login');
     const form = await request.formData();
     const bioValue = form.get('bio');
+    const profileVisibility = form.get('profileVisibility');
     if (typeof bioValue !== 'string') return fail(400, { profileError: 'Ugyldig profiltekst.' });
+    if (profileVisibility !== 'private' && profileVisibility !== 'public') return fail(400, { profileError: 'Velg hvem som kan følge deg.' });
     const bio = bioValue.trim();
     if (bio.length > 300) return fail(400, { profileError: 'Profilteksten kan være maks 300 tegn.' });
     const [current] = await db.select({ avatarPath: profiles.avatarPath, coverPath: profiles.coverPath }).from(profiles).where(eq(profiles.userId, locals.user.id)).limit(1);
@@ -81,7 +85,7 @@ export const actions: Actions = {
     }
     await Promise.all(uploads.map(async (item) => saveUpload(item.storageKey, new Uint8Array(await item.file.arrayBuffer()))));
     const imageValues = Object.fromEntries(uploads.map((item) => [item.field, item.storageKey]));
-    await db.update(profiles).set({ bio: bio || null, ...imageValues }).where(eq(profiles.userId, locals.user.id));
+    await db.update(profiles).set({ bio: bio || null, profileVisibility, ...imageValues }).where(eq(profiles.userId, locals.user.id));
     await Promise.allSettled(uploads.flatMap((item) => item.oldPath ? [removeUpload(item.oldPath)] : []));
     return { profileSaved: true };
   },
@@ -107,7 +111,7 @@ export const actions: Actions = {
     if (!locals.user) redirect(303, '/login');
     const targetId = (await request.formData()).get('targetId');
     if (typeof targetId !== 'string' || targetId === locals.user.id) return fail(400, { followError: 'Ugyldig profil.' });
-    const [target] = await db.select({ id: profiles.userId }).from(profiles).where(eq(profiles.userId, targetId)).limit(1);
+    const [target] = await db.select({ id: profiles.userId, profileVisibility: profiles.profileVisibility }).from(profiles).where(eq(profiles.userId, targetId)).limit(1);
     if (!target) return fail(404, { followError: 'Profilen finnes ikke.' });
     const [block] = await db.select({ blockerId: userBlocks.blockerId }).from(userBlocks).where(or(and(eq(userBlocks.blockerId, locals.user.id), eq(userBlocks.blockedId, targetId)), and(eq(userBlocks.blockerId, targetId), eq(userBlocks.blockedId, locals.user.id)))).limit(1);
     if (block) return fail(403, { followError: 'Denne profilen kan ikke følges.' });
@@ -115,8 +119,9 @@ export const actions: Actions = {
       .where(and(eq(follows.followerId, locals.user.id), eq(follows.followedId, targetId))).limit(1);
     if (existing?.status === 'blocked') return fail(403, { followError: 'Denne profilen kan ikke følges.' });
     if (existing?.status === 'pending') return { requestedId: targetId };
-    await db.insert(follows).values({ followerId: locals.user.id, followedId: targetId, status: 'pending' })
-      .onDuplicateKeyUpdate({ set: { status: 'pending' } });
+    const status = target.profileVisibility === 'public' ? 'accepted' : 'pending';
+    await db.insert(follows).values({ followerId: locals.user.id, followedId: targetId, status })
+      .onDuplicateKeyUpdate({ set: { status } });
     return { followedId: targetId };
   },
   unfollow: async ({ request, locals }) => {
