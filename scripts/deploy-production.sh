@@ -27,6 +27,13 @@ npm run build
 node --env-file="$ENV_FILE" scripts/migrate.mjs
 
 sudo -n systemctl restart samvio.service
-curl --fail --silent --show-error --retry 5 --retry-delay 2 http://127.0.0.1:3000/healthz
+curl \
+  --fail \
+  --silent \
+  --show-error \
+  --retry 10 \
+  --retry-delay 2 \
+  --retry-connrefused \
+  http://127.0.0.1:3000/healthz
 
 echo "Samvio er deployet og svarer på health check."
