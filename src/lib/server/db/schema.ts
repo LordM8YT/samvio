@@ -83,8 +83,9 @@ export const posts = mysqlTable('posts', {
   isCommercial: boolean('is_commercial').notNull().default(false),
   sponsorName: varchar('sponsor_name', { length: 120 }),
   createdAt: timestamp('created_at', { mode: 'date', fsp: 6 }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { mode: 'date', fsp: 6 }).notNull().defaultNow().onUpdateNow()
-}, (t) => [index('idx_posts_chronological').on(t.createdAt, t.id), index('idx_posts_author').on(t.authorId, t.createdAt)]);
+  updatedAt: timestamp('updated_at', { mode: 'date', fsp: 6 }).notNull().defaultNow().onUpdateNow(),
+  retentionDeleteAfter: timestamp('retention_delete_after', { mode: 'date', fsp: 6 })
+}, (t) => [index('idx_posts_chronological').on(t.createdAt, t.id), index('idx_posts_author').on(t.authorId, t.createdAt), index('idx_posts_retention_delete_after').on(t.retentionDeleteAfter)]);
 
 export const postMedia = mysqlTable('post_media', {
   id: char('id', { length: 36 }).primaryKey(),

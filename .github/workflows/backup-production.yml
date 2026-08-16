@@ -30,7 +30,7 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Run verified production backup
+      - name: Backup then apply retention policy
         env:
           DEPLOY_HOST: ${{ secrets.SAMVIO_DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.SAMVIO_DEPLOY_USER }}
@@ -40,4 +40,4 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            'cd /opt/samvio/app && bash ./scripts/backup-production.sh'
+            'cd /opt/samvio/app && bash ./scripts/backup-production.sh && node --env-file=/etc/samvio/samvio.env ./scripts/cleanup-retention.mjs'

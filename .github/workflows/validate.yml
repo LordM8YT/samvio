@@ -26,6 +26,8 @@ jobs:
         run: npm ci
       - name: Shell syntax check
         run: bash -n scripts/*.sh
+      - name: Node maintenance script syntax check
+        run: for file in scripts/*.mjs; do node --check "$file"; done
       - name: Svelte and TypeScript check
         run: npm run check
       - name: Production build

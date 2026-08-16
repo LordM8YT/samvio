@@ -10,6 +10,7 @@ export type UserEntitlements = {
   originalImageQuality: boolean;
   fullArchive: boolean;
   storageLimitBytes: number;
+  retentionDays: number;
 };
 
 const priority: Record<PersonalPlanCode, number> = { free: 0, person: 1, family: 2 };
