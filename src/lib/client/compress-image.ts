@@ -1,8 +1,21 @@
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+async function canKeepOriginalQuality() {
+  try {
+    const response = await fetch('/api/entitlements', { headers: { Accept: 'application/json' } });
+    if (!response.ok) return false;
+    const data = await response.json() as { originalImageQuality?: boolean };
+    return data.originalImageQuality === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function compressImage(file: File, maxDimension = 2200, targetBytes = 2_500_000) {
   if (!ACCEPTED_TYPES.has(file.type)) throw new Error('Velg et bilde i JPG-, PNG- eller WebP-format.');
   if (file.size > 25 * 1024 * 1024) throw new Error('Bildet kan være maks 25 MB.');
+
+  if (await canKeepOriginalQuality()) return file;
 
   const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
   const scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height));
