@@ -1,0 +1,43 @@
+name: Backup Production
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: samvio-production-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Configure SSH
+        env:
+          DEPLOY_KEY: ${{ secrets.SAMVIO_DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SAMVIO_DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -Eeuo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Run verified production backup
+        env:
+          DEPLOY_HOST: ${{ secrets.SAMVIO_DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.SAMVIO_DEPLOY_USER }}
+        run: |
+          set -Eeuo pipefail
+          ssh \
+            -o BatchMode=yes \
+            -o ConnectTimeout=15 \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            'cd /opt/samvio/app && bash ./scripts/backup-production.sh'
