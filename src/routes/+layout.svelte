@@ -1,3 +1,48 @@
-<script lang="ts">import '../styles/app.css'; import '../styles/navigation.css'; import { page } from '$app/state'; import AppShell from '$lib/components/AppShell.svelte'; let { children, data } = $props(); const canonicalUrl = $derived(`https://samvio.no${page.url.pathname}`); const standalone = $derived(page.url.pathname === '/login' || page.url.pathname === '/bli-med' || page.url.pathname === '/kom-i-gang' || page.url.pathname.startsWith('/admin') || (page.url.pathname === '/' && !data.user));</script>
-<svelte:head><meta property="og:site_name" content="Samvio"/>{#if !page.url.pathname.startsWith('/innlegg/') && page.url.pathname !== '/bli-med'}<meta property="og:type" content="website"/><meta property="og:title" content="Samvio – den norske, støyfrie sosiale plattformen"/><meta property="og:description" content="Del ekte øyeblikk med menneskene du velger. Kronologisk feed, ingen anbefalingsalgoritme og tydelige trygghetsgrenser."/><meta property="og:image" content="https://samvio.no/og-samvio.png"/><meta property="og:image:width" content="1200"/><meta property="og:image:height" content="630"/><meta property="og:image:alt" content="Samvio – den norske, støyfrie sosiale plattformen"/><meta property="og:url" content={canonicalUrl}/><meta name="twitter:card" content="summary_large_image"/><meta name="twitter:title" content="Samvio – den norske, støyfrie sosiale plattformen"/><meta name="twitter:description" content="Del ekte øyeblikk med menneskene du velger. Kronologisk og uten anbefalingsalgoritme."/><meta name="twitter:image" content="https://samvio.no/og-samvio.png"/><link rel="canonical" href={canonicalUrl}/>{/if}</svelte:head>
-{#if standalone} {@render children()} {:else}<AppShell user={data.user}>{@render children()}</AppShell>{/if}
+<script lang="ts">
+  import '../styles/app.css';
+  import '../styles/navigation.css';
+  import { page } from '$app/state';
+  import AppShell from '$lib/components/AppShell.svelte';
+
+  let { children, data } = $props();
+  const canonicalUrl = $derived(`https://samvio.no${page.url.pathname}`);
+  const standalone = $derived(page.url.pathname === '/login' || page.url.pathname === '/bli-med' || page.url.pathname === '/kom-i-gang' || page.url.pathname.startsWith('/admin') || (page.url.pathname === '/' && !data.user));
+  const retentionDate = (value: Date | string) => new Intl.DateTimeFormat('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value));
+</script>
+
+<svelte:head>
+  <meta property="og:site_name" content="Samvio"/>
+  {#if !page.url.pathname.startsWith('/innlegg/') && page.url.pathname !== '/bli-med'}
+    <meta property="og:type" content="website"/>
+    <meta property="og:title" content="Samvio – den norske, støyfrie sosiale plattformen"/>
+    <meta property="og:description" content="Del ekte øyeblikk med menneskene du velger. Kronologisk feed, ingen anbefalingsalgoritme og tydelige trygghetsgrenser."/>
+    <meta property="og:image" content="https://samvio.no/og-samvio.png"/>
+    <meta property="og:image:width" content="1200"/>
+    <meta property="og:image:height" content="630"/>
+    <meta property="og:image:alt" content="Samvio – den norske, støyfrie sosiale plattformen"/>
+    <meta property="og:url" content={canonicalUrl}/>
+    <meta name="twitter:card" content="summary_large_image"/>
+    <meta name="twitter:title" content="Samvio – den norske, støyfrie sosiale plattformen"/>
+    <meta name="twitter:description" content="Del ekte øyeblikk med menneskene du velger. Kronologisk og uten anbefalingsalgoritme."/>
+    <meta name="twitter:image" content="https://samvio.no/og-samvio.png"/>
+    <link rel="canonical" href={canonicalUrl}/>
+  {/if}
+</svelte:head>
+
+{#if standalone}
+  {@render children()}
+{:else}
+  <AppShell user={data.user}>
+    {#if data.retentionWarning}
+      <a class="retention-warning" href="/historikk?periode=utloper">
+        <strong>{data.retentionWarning.count} {data.retentionWarning.count === 1 ? 'innlegg' : 'innlegg'} nærmer seg automatisk sletting.</strong>
+        <span>Første slettedato er {retentionDate(data.retentionWarning.earliestDeleteAt)}. Se innleggene før de fjernes permanent.</span>
+      </a>
+    {/if}
+    {@render children()}
+  </AppShell>
+{/if}
+
+<style>
+  .retention-warning{display:grid;gap:3px;width:min(760px,calc(100% - 30px));margin:14px auto 0;padding:12px 14px;border:1px solid #e5cfa8;border-radius:10px;background:#fff8e8;color:#674f26;font-size:12px;line-height:1.45}.retention-warning strong{font-size:12px}.retention-warning span{color:#7b6846}
+</style>
