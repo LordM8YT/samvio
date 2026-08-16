@@ -59,11 +59,20 @@ export const load: PageServerLoad = async ({ url }) => {
     current.registrations += row.registrations;
     acquisitionBySource.set(row.source, current);
   }
+  const acquisition = [...acquisitionBySource]
+    .map(([source, values]) => ({ source, ...values, conversion: values.visits ? values.registrations / values.visits * 100 : null }))
+    .sort((a, b) => b.visits - a.visits || b.registrations - a.registrations);
+  const acquisitionSummary = acquisition.reduce((summary, source) => ({
+    visits: summary.visits + source.visits,
+    registrations: summary.registrations + source.registrations,
+    sources: summary.sources + 1
+  }), { visits: 0, registrations: 0, sources: 0 });
 
   return {
     query,
     stats: { active24: statsRows[0][0].value, posts: statsRows[1][0].value, reports: statsRows[2][0].value, users: statsRows[3][0].value },
-    acquisition: [...acquisitionBySource].map(([source, values]) => ({ source, ...values, conversion: values.visits ? values.registrations / values.visits * 100 : 0 })).sort((a, b) => b.visits - a.visits),
+    acquisition,
+    acquisitionSummary,
     users: userRows.map((user) => ({ ...user, subscriber: subscribers.has(user.id) })),
     reports: reportRows.map((report) => ({ ...report, target: targets.get(report.targetId) ?? null })),
     storage: { bytes: storageBytes, limitBytes: disk ? disk.blocks * disk.bsize : 38 * 1024 * 1024 * 1024 },
