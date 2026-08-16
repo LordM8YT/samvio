@@ -73,6 +73,8 @@
 
   const allCategories = groups.flatMap((group) => group.items);
   const activeCategory = $derived(allCategories.find((item) => item.id === data.category) ?? allCategories[0]);
+  const ActiveIcon = $derived(activeCategory.icon);
+  const displayName = $derived(data.user.realName ?? data.user.username ?? 'Samvio-bruker');
   const normalizedSearch = $derived(settingsSearch.trim().toLowerCase());
   const matchesSearch = (item: Category) => !normalizedSearch || `${item.title} ${item.description} ${item.keywords}`.toLowerCase().includes(normalizedSearch);
 
@@ -156,7 +158,6 @@
 
       <section class="settings-content">
         <header class="content-header">
-          {@const ActiveIcon = activeCategory.icon}
           <span><ActiveIcon size={22}/></span>
           <div><h2>{activeCategory.title}</h2><p>{activeCategory.description}</p></div>
         </header>
@@ -164,8 +165,8 @@
         {#if activeCategory.id === 'oversikt'}
           <div class="overview-grid">
             <article class="summary-card account-summary">
-              <span class="avatar-fallback">{data.user.realName.slice(0, 1).toUpperCase()}</span>
-              <div><small>Innlogget som</small><strong>{data.user.realName}</strong><p>@{data.user.username} · {data.user.email}</p></div>
+              <span class="avatar-fallback">{displayName.slice(0, 1).toUpperCase()}</span>
+              <div><small>Innlogget som</small><strong>{displayName}</strong><p>@{data.user.username} · {data.user.email}</p></div>
               <a href="/innstillinger?kategori=konto">Administrer</a>
             </article>
 
