@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, inArray, lt, or } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNotNull, lt, or } from 'drizzle-orm';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { follows, postMedia, postReactions, posts, profiles, users } from '$lib/server/db/schema';
@@ -17,7 +17,8 @@ function periodStart(period: string) {
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) redirect(303, '/login?next=/historikk');
-  const requestedPeriod = ['week', 'month', 'year', 'older'].includes(url.searchParams.get('periode') ?? '') ? url.searchParams.get('periode')! : 'month';
+  const requested = url.searchParams.get('periode') ?? '';
+  const requestedPeriod = ['week', 'month', 'year', 'older', 'utloper'].includes(requested) ? requested : 'month';
   const entitlements = await getUserEntitlements(locals.user.id);
   if (requestedPeriod === 'older' && !entitlements.fullArchive) {
     return { period: requestedPeriod, posts: [], nextCursor: null, archiveLocked: true, planCode: entitlements.planCode };
@@ -27,27 +28,44 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const cursorValue = url.searchParams.get('foer');
   const [cursorDateValue, cursorId] = cursorValue?.split('|') ?? [];
   const cursorDate = cursorDateValue ? new Date(cursorDateValue) : null;
+  const cursorFilter = cursorDate && cursorId && !Number.isNaN(cursorDate.getTime())
+    ? or(lt(posts.createdAt, cursorDate), and(eq(posts.createdAt, cursorDate), lt(posts.id, cursorId)))
+    : undefined;
+
   const followedUsers = db.select({ id: follows.followedId }).from(follows)
     .where(and(eq(follows.followerId, locals.user.id), eq(follows.status, 'accepted')));
-  const audience = or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers))!;
+  const audience = period === 'utloper'
+    ? eq(posts.authorId, locals.user.id)
+    : or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers))!;
+
   const start = periodStart(period);
   const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-  const timeFilter = cursorDate && cursorId && !Number.isNaN(cursorDate.getTime())
-    ? or(lt(posts.createdAt, cursorDate), and(eq(posts.createdAt, cursorDate), lt(posts.id, cursorId)))
+  const periodFilter = period === 'utloper'
+    ? isNotNull(posts.retentionDeleteAfter)
     : period === 'older'
       ? lt(posts.createdAt, oneYearAgo)
       : start
         ? and(lt(posts.createdAt, new Date()), gt(posts.createdAt, start))
         : undefined;
+
   const rows = await db.select({
-    id: posts.id, caption: posts.caption, createdAt: posts.createdAt, isCommercial: posts.isCommercial, sponsorName: posts.sponsorName,
-    authorName: profiles.realName, authorUsername: profiles.username, authorRole: users.accountRole, mediaId: postMedia.id
+    id: posts.id,
+    caption: posts.caption,
+    createdAt: posts.createdAt,
+    retentionDeleteAfter: posts.retentionDeleteAfter,
+    isCommercial: posts.isCommercial,
+    sponsorName: posts.sponsorName,
+    authorName: profiles.realName,
+    authorUsername: profiles.username,
+    authorRole: users.accountRole,
+    mediaId: postMedia.id
   }).from(posts)
     .innerJoin(profiles, eq(profiles.userId, posts.authorId))
     .innerJoin(users, eq(users.id, posts.authorId))
     .leftJoin(postMedia, eq(postMedia.postId, posts.id))
-    .where(timeFilter ? and(audience, eq(posts.moderationStatus, 'visible'), timeFilter) : and(audience, eq(posts.moderationStatus, 'visible')))
+    .where(and(audience, eq(posts.moderationStatus, 'visible'), periodFilter, cursorFilter))
     .orderBy(desc(posts.createdAt), desc(posts.id)).limit(PAGE_SIZE + 1);
+
   const hasMore = rows.length > PAGE_SIZE;
   const page = rows.slice(0, PAGE_SIZE);
   const likedRows = page.length ? await db.select({ postId: postReactions.postId }).from(postReactions)
