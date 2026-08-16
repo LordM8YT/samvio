@@ -67,6 +67,11 @@ export function createAgreement(input: {
     method: 'POST',
     headers: { 'Idempotency-Key': input.idempotencyKey },
     body: JSON.stringify({
+      initialCharge: {
+        amount: input.amountOre,
+        description: `${input.productName} – første måned`,
+        transactionType: 'DIRECT_CAPTURE'
+      },
       interval: { unit: 'MONTH', count: 1 },
       pricing: { amount: input.amountOre, currency: 'NOK' },
       merchantRedirectUrl: input.redirectUrl,
