@@ -8,16 +8,21 @@ import { db } from '$lib/server/db';
 import { profiles, userPreferences, users } from '$lib/server/db/schema';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import { isVippsLoginEnabled } from '$lib/server/vipps/config';
-import { readAcquisition, recordRegistration } from '$lib/server/acquisition';
+import { readAcquisition, recordLandingVisit, recordRegistration } from '$lib/server/acquisition';
 import type { Actions, PageServerLoad } from './$types';
 
 const loginSchema = z.object({ email: z.string().trim().email().transform((v) => v.toLowerCase()), password: z.string().min(8).max(128) });
 const registerSchema = loginSchema.extend({ realName: z.string().trim().min(2).max(120), username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,30}$/), birthDate: z.coerce.date().max(new Date()) });
 const nextPath = (url: URL, fallback = '/') => { const next = url.searchParams.get('next'); return next?.startsWith('/') && !next.startsWith('//') ? next : fallback; };
 
-export const load: PageServerLoad = ({ locals, url }) => {
+export const load: PageServerLoad = async ({ cookies, locals, url }) => {
   if (locals.user) redirect(303, nextPath(url));
-  return { vippsLoginEnabled: isVippsLoginEnabled(), vippsError: url.searchParams.get('vipps_error'), next: nextPath(url), registerMode: url.searchParams.get('ny') === '1' };
+  const registerMode = url.searchParams.get('ny') === '1';
+  if (registerMode) {
+    const acquisition = readAcquisition(cookies);
+    await recordLandingVisit(cookies, acquisition.source).catch(() => undefined);
+  }
+  return { vippsLoginEnabled: isVippsLoginEnabled(), vippsError: url.searchParams.get('vipps_error'), next: nextPath(url), registerMode };
 };
 
 export const actions: Actions = {
