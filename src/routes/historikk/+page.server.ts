@@ -2,6 +2,7 @@ import { and, desc, eq, gt, inArray, lt, or } from 'drizzle-orm';
 import { redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { follows, postMedia, postReactions, posts, profiles, users } from '$lib/server/db/schema';
+import { getUserEntitlements } from '$lib/server/subscriptions';
 import type { PageServerLoad } from './$types';
 
 const PAGE_SIZE = 24;
@@ -10,13 +11,19 @@ function periodStart(period: string) {
   const now = new Date();
   if (period === 'week') return new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
   if (period === 'month') return new Date(now.getFullYear(), now.getMonth(), 1);
-  if (period === 'year') return new Date(now.getFullYear(), 0, 1);
+  if (period === 'year') return new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
   return null;
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) redirect(303, '/login?next=/historikk');
-  const period = ['week', 'month', 'year', 'older'].includes(url.searchParams.get('periode') ?? '') ? url.searchParams.get('periode')! : 'month';
+  const requestedPeriod = ['week', 'month', 'year', 'older'].includes(url.searchParams.get('periode') ?? '') ? url.searchParams.get('periode')! : 'month';
+  const entitlements = await getUserEntitlements(locals.user.id);
+  if (requestedPeriod === 'older' && !entitlements.fullArchive) {
+    return { period: requestedPeriod, posts: [], nextCursor: null, archiveLocked: true, planCode: entitlements.planCode };
+  }
+
+  const period = requestedPeriod;
   const cursorValue = url.searchParams.get('foer');
   const [cursorDateValue, cursorId] = cursorValue?.split('|') ?? [];
   const cursorDate = cursorDateValue ? new Date(cursorDateValue) : null;
@@ -24,10 +31,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
     .where(and(eq(follows.followerId, locals.user.id), eq(follows.status, 'accepted')));
   const audience = or(eq(posts.authorId, locals.user.id), inArray(posts.authorId, followedUsers))!;
   const start = periodStart(period);
+  const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
   const timeFilter = cursorDate && cursorId && !Number.isNaN(cursorDate.getTime())
     ? or(lt(posts.createdAt, cursorDate), and(eq(posts.createdAt, cursorDate), lt(posts.id, cursorId)))
     : period === 'older'
-      ? lt(posts.createdAt, new Date(new Date().getFullYear(), 0, 1))
+      ? lt(posts.createdAt, oneYearAgo)
       : start
         ? and(lt(posts.createdAt, new Date()), gt(posts.createdAt, start))
         : undefined;
@@ -47,5 +55,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   const likedIds = new Set(likedRows.map((row) => row.postId));
   const historyPosts = page.map((post) => ({ ...post, liked: likedIds.has(post.id) }));
   const last = page.at(-1);
-  return { period, posts: historyPosts, nextCursor: hasMore && last ? `${last.createdAt.toISOString()}|${last.id}` : null };
+  return { period, posts: historyPosts, nextCursor: hasMore && last ? `${last.createdAt.toISOString()}|${last.id}` : null, archiveLocked: false, planCode: entitlements.planCode };
 };
