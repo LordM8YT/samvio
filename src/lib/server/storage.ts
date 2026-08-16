@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const storageRoot = path.resolve(env.UPLOAD_DIR || (process.env.NODE_ENV === 'production' ? '/var/lib/samvio/uploads' : './uploads'));
@@ -16,6 +16,10 @@ export async function saveUpload(storageKey: string, bytes: Uint8Array) {
 
 export async function readUpload(storageKey: string) {
   return readFile(safePath(storageKey));
+}
+
+export async function uploadSize(storageKey: string) {
+  return (await stat(safePath(storageKey))).size;
 }
 
 export async function removeUpload(storageKey: string) {
