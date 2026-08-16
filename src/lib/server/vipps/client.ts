@@ -4,12 +4,14 @@ type AccessTokenResponse = { access_token: string; expires_in: string };
 export type VippsAgreement = {
   agreementId: string;
   vippsConfirmationUrl?: string;
+  chargeId?: string;
   status?: string;
 };
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 async function parseResponse<T>(response: Response): Promise<T> {
+  if (response.status === 204) return undefined as T;
   const body = await response.json().catch(() => null);
   if (!response.ok) {
     const detail = body && typeof body === 'object' ? JSON.stringify(body) : response.statusText;
@@ -69,18 +71,29 @@ export function createAgreement(input: {
     body: JSON.stringify({
       initialCharge: {
         amount: input.amountOre,
+        currency: 'NOK',
         description: `${input.productName} – første måned`,
-        transactionType: 'DIRECT_CAPTURE'
+        transactionType: 'DIRECT_CAPTURE',
+        orderId: input.idempotencyKey
       },
       interval: { unit: 'MONTH', count: 1 },
       pricing: { amount: input.amountOre, currency: 'NOK' },
       merchantRedirectUrl: input.redirectUrl,
       merchantAgreementUrl: input.agreementUrl,
-      productName: input.productName
+      productName: input.productName,
+      externalId: input.idempotencyKey
     })
   });
 }
 
 export function getAgreement(agreementId: string) {
   return vippsRequest<VippsAgreement>(`/recurring/v3/agreements/${encodeURIComponent(agreementId)}`);
+}
+
+export function stopAgreement(agreementId: string, idempotencyKey: string) {
+  return vippsRequest<void>(`/recurring/v3/agreements/${encodeURIComponent(agreementId)}`, {
+    method: 'PATCH',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ status: 'STOPPED' })
+  });
 }
