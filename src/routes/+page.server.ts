@@ -5,10 +5,12 @@ import { db } from '$lib/server/db';
 import { follows, postMedia, postReactions, posts, profiles, userBlocks, userFeedState, userPreferences, users } from '$lib/server/db/schema';
 import { removeUpload, saveUpload } from '$lib/server/storage';
 import { consumeRateLimit } from '$lib/server/rate-limit';
+import { getUserEntitlements, getUserStorageUsage } from '$lib/server/subscriptions';
 import { isVippsLoginEnabled } from '$lib/server/vipps/config';
 import type { Actions, PageServerLoad } from './$types';
 
 const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+const MAX_OPTIMIZED_IMAGE_BYTES = 3 * 1024 * 1024;
 const allowedTypes = new Map([['image/jpeg', 'jpg'], ['image/png', 'png'], ['image/webp', 'webp']]);
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -118,6 +120,16 @@ export const actions: Actions = {
     const extension = allowedTypes.get(file.type);
     if (!extension || file.size > MAX_IMAGE_BYTES) return fail(400, { postError: 'Bruk JPG, PNG eller WebP på maks 25 MB.' });
 
+    const entitlements = await getUserEntitlements(locals.user.id);
+    if (!entitlements.originalImageQuality && file.size > MAX_OPTIMIZED_IMAGE_BYTES) {
+      return fail(400, { postError: 'Gratisbilder må optimaliseres til maks 3 MB. Prøv bildet på nytt.' });
+    }
+    const storageUsed = await getUserStorageUsage(locals.user.id);
+    if (storageUsed + file.size > entitlements.storageLimitBytes) {
+      const limitGb = Math.round(entitlements.storageLimitBytes / 1024 / 1024 / 1024);
+      return fail(413, { postError: `Du har brukt lagringskvoten din på ${limitGb} GB. Se abonnement for mer plass.` });
+    }
+
     const postId = randomUUID();
     const mediaId = randomUUID();
     const storageKey = `${mediaId}.${extension}`;
@@ -126,7 +138,13 @@ export const actions: Actions = {
     try {
       await db.transaction(async (tx) => {
         await tx.insert(posts).values({ id: postId, authorId: locals.user!.id, caption: caption || null, visibility: isPublic ? 'public' : 'followers', isCommercial, sponsorName: isCommercial ? sponsorName : null });
-        await tx.insert(postMedia).values({ id: mediaId, postId, mediaType: 'image', storageKey });
+        await tx.insert(postMedia).values({
+          id: mediaId,
+          postId,
+          mediaType: 'image',
+          storageKey,
+          metadata: { bytes: file.size, quality: entitlements.originalImageQuality ? 'original' : 'optimized' }
+        });
       });
     } catch {
       await removeUpload(storageKey);
