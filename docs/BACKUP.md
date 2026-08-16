@@ -14,9 +14,9 @@ Standard:
 
 Backup-scriptet tester gzip/tar og SHA-256 før snapshotet markeres som ferdig.
 
-## 1. Dedikert databasebruker
+## 1. Dedikert databasebruker for backup
 
-Kjør som MariaDB-administrator:
+Backup-brukeren skal være read-only. Kjør som MariaDB-administrator:
 
 ```sql
 CREATE USER 'samvio_backup'@'localhost' IDENTIFIED BY 'BRUK_ET_LANGT_TILFELDIG_PASSORD';
@@ -86,7 +86,17 @@ Restore er bevisst vanskelig å kjøre ved et uhell. Scriptet:
 5. starter Samvio igjen,
 6. krever grønn `/healthz` før restore regnes som vellykket.
 
-Kjør:
+Restore bruker **ikke** den read-only backup-brukeren. Når scriptet kjøres som root prøver det først MariaDBs lokale root/socket-auth. På standard Ubuntu/MariaDB er dette normalt nok.
+
+Test tilgang uten å endre data:
+
+```bash
+sudo mariadb samvio -Nse 'SELECT 1'
+```
+
+Hvis dette ikke fungerer, opprett en separat root-eid `/etc/samvio/mysql-restore.cnf` med en databasebruker som har nødvendige rettigheter til å opprette, endre, slette og skrive tabeller i `samvio`. Filen skal ha `0600` og aldri committes til GitHub. Restore-scriptet bruker denne automatisk hvis filen finnes.
+
+Kjør restore:
 
 ```bash
 cd /opt/samvio/app
@@ -99,7 +109,7 @@ Hvis safety-backup ikke kan tas fordi nåværende database er ødelagt, kan den 
 sudo bash scripts/restore-production.sh /var/backups/samvio/snapshots/<timestamp> --confirm --skip-safety-backup
 ```
 
-Ved restore-feil holdes appen stoppet slik at den ikke starter med delvis gjenopprettede data.
+Ved restore-feil stoppes appen slik at den ikke kjører med delvis gjenopprettede data.
 
 ## 5. Off-server backup
 
