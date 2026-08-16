@@ -5,7 +5,7 @@ APP_DIR="${APP_DIR:-/opt/samvio/app}"
 UPLOAD_DIR="${UPLOAD_DIR:-/var/lib/samvio/uploads}"
 BACKUP_ROOT="${BACKUP_ROOT:-/var/backups/samvio}"
 DB_NAME="${DB_NAME:-samvio}"
-MYSQL_CNF="${MYSQL_CNF:-/etc/samvio/mysql-backup.cnf}"
+MYSQL_RESTORE_CNF="${MYSQL_RESTORE_CNF:-/etc/samvio/mysql-restore.cnf}"
 APP_SERVICE="${APP_SERVICE:-samvio.service}"
 
 usage() {
@@ -53,10 +53,6 @@ for file in database.sql.gz uploads.tar.gz metadata.txt SHA256SUMS; do
     exit 1
   fi
 done
-if [[ ! -f "$MYSQL_CNF" ]]; then
-  echo "Mangler database-credentials: $MYSQL_CNF" >&2
-  exit 1
-fi
 
 if command -v mariadb >/dev/null 2>&1; then
   DB_BIN="$(command -v mariadb)"
@@ -64,6 +60,17 @@ elif command -v mysql >/dev/null 2>&1; then
   DB_BIN="$(command -v mysql)"
 else
   echo "Fant verken mariadb eller mysql-klienten." >&2
+  exit 1
+fi
+
+DB_ARGS=()
+if [[ -f "$MYSQL_RESTORE_CNF" ]]; then
+  DB_ARGS+=("--defaults-extra-file=$MYSQL_RESTORE_CNF")
+fi
+
+if ! "$DB_BIN" "${DB_ARGS[@]}" "$DB_NAME" -Nse 'SELECT 1' >/dev/null 2>&1; then
+  echo "Restore-brukeren har ikke tilgang til $DB_NAME. Root/socket-auth feilet og $MYSQL_RESTORE_CNF ga ikke gyldig tilgang." >&2
+  echo "Se docs/BACKUP.md for separat restore-config." >&2
   exit 1
 fi
 
@@ -88,7 +95,8 @@ systemctl stop "$APP_SERVICE"
 restore_failed=1
 on_exit() {
   if [[ "$restore_failed" -ne 0 ]]; then
-    echo "RESTORE FEILET. $APP_SERVICE er holdt stoppet for å unngå å starte med delvis gjenopprettede data." >&2
+    systemctl stop "$APP_SERVICE" >/dev/null 2>&1 || true
+    echo "RESTORE FEILET. $APP_SERVICE er stoppet for å unngå å kjøre med delvis gjenopprettede data." >&2
     if [[ -d "$rollback_uploads" ]]; then
       echo "Forrige uploads-map ligger i: $rollback_uploads" >&2
     fi
@@ -97,7 +105,7 @@ on_exit() {
 trap on_exit EXIT
 
 echo "Gjenoppretter database..."
-gzip -dc "$snapshot/database.sql.gz" | "$DB_BIN" --defaults-extra-file="$MYSQL_CNF" "$DB_NAME"
+gzip -dc "$snapshot/database.sql.gz" | "$DB_BIN" "${DB_ARGS[@]}" "$DB_NAME"
 
 echo "Gjenoppretter uploads..."
 if [[ -e "$UPLOAD_DIR" ]]; then
