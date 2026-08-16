@@ -26,4 +26,10 @@ Installer `ops/samvio.service` i `/etc/systemd/system/` og Nginx-filen i `/etc/n
 
 ## Backup
 
-Kjør database- og upload-scriptet daglig via systemd timer eller cron. Backup på samme VPS er bare første sikkerhetsnett; off-server backup må etableres før alphaen får verdifulle brukerdata. Test gjenoppretting jevnlig.
+Production-backup bruker `scripts/backup-production.sh` og systemd-unitene `ops/samvio-backup.service` / `ops/samvio-backup.timer`.
+
+Hvert snapshot inneholder database, uploads, metadata og SHA-256-checksums. Arkivene verifiseres før snapshotet markeres som ferdig. Standard lokal retention er 14 dager, og timeren kjører daglig rundt 03:15.
+
+Installer og test backupoppsettet etter instruksjonene i [`docs/BACKUP.md`](./BACKUP.md). `scripts/restore-production.sh` er den dokumenterte restore-veien og krever eksplisitt `--confirm`.
+
+Backup på samme VPS er bare første sikkerhetsnett. Off-server kopi med separat credentials/config skal etableres før alphaen får verdifulle brukerdata, og minst ett snapshot skal restore-testes i et separat miljø.
