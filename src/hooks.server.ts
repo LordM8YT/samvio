@@ -5,7 +5,22 @@ import { getSessionUser, SESSION_COOKIE } from '$lib/server/auth';
 export const handle: Handle = async ({ event, resolve }) => {
   event.locals.requestId = randomUUID();
   const token = event.cookies.get(SESSION_COOKIE);
-  event.locals.user = token ? await getSessionUser(token).catch(() => null) : null;
+  event.locals.user = null;
+
+  if (token) {
+    try {
+      event.locals.user = await getSessionUser(token);
+    } catch (error) {
+      console.error(JSON.stringify({
+        event: 'session_lookup_failed',
+        requestId: event.locals.requestId,
+        method: event.request.method,
+        route: event.route.id ?? 'unmatched',
+        errorName: error instanceof Error ? error.name : 'UnknownError'
+      }));
+    }
+  }
+
   const response = await resolve(event);
   response.headers.set('x-request-id', event.locals.requestId);
   return response;
