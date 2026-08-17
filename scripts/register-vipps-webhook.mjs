@@ -124,11 +124,6 @@ if (existingComplete && process.env.VIPPS_WEBHOOK_SECRET) {
   process.exit(0);
 }
 
-for (const webhook of matches) {
-  console.log(`Erstatter eksisterende Vipps webhook ${webhook.id} for å få en kjent secret.`);
-  await deleteWebhook(webhook.id);
-}
-
 const created = await createWebhook();
 if (!created?.id || !created?.secret) throw new Error('Vipps returnerte ikke webhook-id og secret.');
 
@@ -142,6 +137,14 @@ try {
 } catch (error) {
   await deleteWebhook(created.id).catch(() => undefined);
   throw error;
+}
+
+for (const webhook of matches) {
+  try {
+    await deleteWebhook(webhook.id);
+  } catch (error) {
+    console.error(`Kunne ikke slette gammel Vipps webhook ${webhook.id}; ny webhook er likevel aktiv.`, error);
+  }
 }
 
 console.log(`Vipps Recurring webhook registrert: ${callbackUrl}`);
