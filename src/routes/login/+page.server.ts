@@ -15,6 +15,18 @@ const loginSchema = z.object({ email: z.string().trim().email().transform((v) =>
 const registerSchema = loginSchema.extend({ realName: z.string().trim().min(2).max(120), username: z.string().trim().toLowerCase().regex(/^[a-z0-9_]{3,30}$/), birthDate: z.coerce.date().max(new Date()) });
 const nextPath = (url: URL, fallback = '/') => { const next = url.searchParams.get('next'); return next?.startsWith('/') && !next.startsWith('//') ? next : fallback; };
 
+function ageInYears(birthDate: Date, now = new Date()) {
+  let age = now.getUTCFullYear() - birthDate.getUTCFullYear();
+  const birthdayHasPassed = now.getUTCMonth() > birthDate.getUTCMonth()
+    || (now.getUTCMonth() === birthDate.getUTCMonth() && now.getUTCDate() >= birthDate.getUTCDate());
+  if (!birthdayHasPassed) age -= 1;
+  return age;
+}
+
+function isDuplicateEntry(error: unknown) {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ER_DUP_ENTRY';
+}
+
 export const load: PageServerLoad = async ({ cookies, locals, url }) => {
   if (locals.user) redirect(303, nextPath(url));
   const registerMode = url.searchParams.get('ny') === '1';
@@ -26,7 +38,7 @@ export const load: PageServerLoad = async ({ cookies, locals, url }) => {
 };
 
 export const actions: Actions = {
-  login: async ({ request, cookies, getClientAddress, url }) => {
+  login: async ({ request, cookies, getClientAddress, url, locals }) => {
     const parsed = loginSchema.safeParse(Object.fromEntries(await request.formData()));
     if (!parsed.success) return fail(400, { mode: 'login', message: 'Kontroller e-post og passord.' });
     const rate = consumeRateLimit(`login:${getClientAddress()}:${parsed.data.email}`, 5, 15 * 60_000);
@@ -36,16 +48,20 @@ export const actions: Actions = {
       if (!user?.passwordHash || !(await compare(parsed.data.password, user.passwordHash))) return fail(400, { mode: 'login', message: 'Feil e-post eller passord.' });
       if (user.accountStatus !== 'active') return fail(403, { mode: 'login', message: 'Denne kontoen kan ikke logge inn akkurat nå.' });
       const token = await createSession(user.id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, nextPath(url));
-    } catch (error) { if (isRedirect(error)) throw error; return fail(503, { mode: 'login', message: 'Databasen er ikke tilgjengelig akkurat nå.' }); }
+    } catch (error) {
+      if (isRedirect(error)) throw error;
+      console.error(JSON.stringify({ event: 'login_backend_failed', requestId: locals.requestId, errorName: error instanceof Error ? error.name : 'UnknownError' }));
+      return fail(503, { mode: 'login', message: 'Innlogging er midlertidig utilgjengelig. Prøv igjen om litt.' });
+    }
   },
-  register: async ({ request, cookies, getClientAddress, url }) => {
+  register: async ({ request, cookies, getClientAddress, url, locals }) => {
     const rate = consumeRateLimit(`register:${getClientAddress()}`, 3, 60 * 60_000);
     if (!rate.allowed) return fail(429, { mode: 'register', message: 'For mange registreringsforsøk. Prøv igjen senere.' });
     const parsed = registerSchema.safeParse(Object.fromEntries(await request.formData()));
     if (!parsed.success) return fail(400, { mode: 'register', message: 'Kontroller alle feltene. Brukernavn må være små bokstaver.' });
-    const age = Math.floor((Date.now() - parsed.data.birthDate.getTime()) / 31557600000);
+    const age = ageInYears(parsed.data.birthDate);
     if (age < 13) return fail(400, { mode: 'register', message: 'Samvio alpha er foreløpig bare tilgjengelig fra 13 år.' });
-    const ageBand = age < 13 ? 'child' : age < 18 ? 'teen' : 'adult';
+    const ageBand = age < 18 ? 'teen' : 'adult';
     const id = randomUUID();
     const acquisition = readAcquisition(cookies);
     try {
@@ -57,6 +73,11 @@ export const actions: Actions = {
       });
       await recordRegistration(acquisition.source).catch(() => undefined);
       const token = await createSession(id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, nextPath(url, '/kom-i-gang'));
-    } catch (error) { if (isRedirect(error)) throw error; return fail(409, { mode: 'register', message: 'E-post eller brukernavn er allerede i bruk, eller databasen mangler.' }); }
+    } catch (error) {
+      if (isRedirect(error)) throw error;
+      if (isDuplicateEntry(error)) return fail(409, { mode: 'register', message: 'E-post eller brukernavn er allerede i bruk.' });
+      console.error(JSON.stringify({ event: 'registration_backend_failed', requestId: locals.requestId, errorName: error instanceof Error ? error.name : 'UnknownError' }));
+      return fail(503, { mode: 'register', message: 'Kunne ikke opprette konto akkurat nå. Prøv igjen om litt.' });
+    }
   }
 };
