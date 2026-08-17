@@ -1,8 +1,29 @@
-import type { Handle } from '@sveltejs/kit';
+import { randomUUID } from 'node:crypto';
+import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getSessionUser, SESSION_COOKIE } from '$lib/server/auth';
 
 export const handle: Handle = async ({ event, resolve }) => {
+  event.locals.requestId = randomUUID();
   const token = event.cookies.get(SESSION_COOKIE);
   event.locals.user = token ? await getSessionUser(token).catch(() => null) : null;
-  return resolve(event);
+  const response = await resolve(event);
+  response.headers.set('x-request-id', event.locals.requestId);
+  return response;
+};
+
+export const handleError: HandleServerError = ({ error, event, status, message }) => {
+  console.error(JSON.stringify({
+    event: 'server_error',
+    requestId: event.locals.requestId,
+    method: event.request.method,
+    route: event.route.id ?? 'unmatched',
+    status,
+    errorName: error instanceof Error ? error.name : 'UnknownError',
+    errorMessage: error instanceof Error ? error.message : message
+  }));
+
+  return {
+    message: 'En uventet feil oppstod.',
+    requestId: event.locals.requestId
+  };
 };
