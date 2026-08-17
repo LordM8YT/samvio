@@ -1,7 +1,7 @@
 import { and, count, desc, eq, inArray, or } from 'drizzle-orm';
 import { error, fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
-import { follows, postMedia, postReactions, posts, profiles, userBlocks, users } from '$lib/server/db/schema';
+import { follows, postMedia, postReactions, posts, profiles, userBlocks, users, verifications } from '$lib/server/db/schema';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params, locals }) => {
@@ -9,6 +9,12 @@ export const load: PageServerLoad = async ({ params, locals }) => {
   const [profile] = await db.select({ userId: profiles.userId, realName: profiles.realName, username: profiles.username, bio: profiles.bio, avatarPath: profiles.avatarPath, coverPath: profiles.coverPath, profileUpdatedAt: profiles.updatedAt, verified: profiles.isIdentityVerified, role: users.accountRole })
     .from(profiles).innerJoin(users, eq(users.id, profiles.userId)).where(eq(profiles.username, params.username.toLowerCase())).limit(1);
   if (!profile) error(404, 'Profilen finnes ikke');
+
+  const [identityVerification] = profile.verified
+    ? await db.select({ provider: verifications.provider }).from(verifications)
+      .where(and(eq(verifications.userId, profile.userId), eq(verifications.status, 'verified'))).limit(1)
+    : [];
+  const verificationProvider = identityVerification?.provider ?? null;
 
   const isOwnProfile = profile.userId === locals.user.id;
   const [block] = isOwnProfile ? [] : await db.select({ blockerId: userBlocks.blockerId }).from(userBlocks)
@@ -31,7 +37,7 @@ export const load: PageServerLoad = async ({ params, locals }) => {
     db.select({ value: count() }).from(follows).where(and(eq(follows.followerId, profile.userId), eq(follows.status, 'accepted')))
   ]);
 
-  return { profile, isOwnProfile, isBlocked, followStatus: relation?.status ?? null, canSeePosts, moments: profilePosts, stats: { posts: postCount.value, followers: followerCount.value, following: followingCount.value } };
+  return { profile, verificationProvider, isOwnProfile, isBlocked, followStatus: relation?.status ?? null, canSeePosts, moments: profilePosts, stats: { posts: postCount.value, followers: followerCount.value, following: followingCount.value } };
 };
 
 export const actions: Actions = {
