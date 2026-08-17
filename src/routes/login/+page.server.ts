@@ -41,8 +41,10 @@ export const actions: Actions = {
   login: async ({ request, cookies, getClientAddress, url, locals }) => {
     const parsed = loginSchema.safeParse(Object.fromEntries(await request.formData()));
     if (!parsed.success) return fail(400, { mode: 'login', message: 'Kontroller e-post og passord.' });
-    const rate = consumeRateLimit(`login:${getClientAddress()}:${parsed.data.email}`, 5, 15 * 60_000);
-    if (!rate.allowed) return fail(429, { mode: 'login', message: 'For mange forsøk. Vent litt og prøv igjen.' });
+    const clientAddress = getClientAddress();
+    const ipRate = consumeRateLimit(`login-ip:${clientAddress}`, 30, 15 * 60_000);
+    const accountRate = consumeRateLimit(`login:${clientAddress}:${parsed.data.email}`, 5, 15 * 60_000);
+    if (!ipRate.allowed || !accountRate.allowed) return fail(429, { mode: 'login', message: 'For mange forsøk. Vent litt og prøv igjen.' });
     try {
       const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
       if (!user?.passwordHash || !(await compare(parsed.data.password, user.passwordHash))) return fail(400, { mode: 'login', message: 'Feil e-post eller passord.' });
