@@ -5,7 +5,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { db } from '$lib/server/db';
 import { postMedia, posts, profiles, sessions, userBlocks, userPreferences, users } from '$lib/server/db/schema';
 import { deleteSession, SESSION_COOKIE } from '$lib/server/auth';
-import { removeUpload, saveUpload } from '$lib/server/storage';
+import { removeUploadChecked, saveUpload } from '$lib/server/storage';
 import { getUserEntitlements, getUserStorageUsage } from '$lib/server/subscriptions';
 import { consumeRateLimit } from '$lib/server/rate-limit';
 import type { Actions, PageServerLoad } from './$types';
@@ -25,6 +25,14 @@ const settingsCategories = new Set([
   'hjelp',
   'kontoadministrasjon'
 ]);
+
+async function cleanupUploads(storageKeys: string[], event: string) {
+  if (!storageKeys.length) return 0;
+  const results = await Promise.allSettled(storageKeys.map((storageKey) => removeUploadChecked(storageKey)));
+  const failed = results.filter((result) => result.status === 'rejected').length;
+  if (failed) console.warn(JSON.stringify({ event, failed, total: storageKeys.length }));
+  return failed;
+}
 
 export const load: PageServerLoad = async ({ locals, url }) => {
   if (!locals.user) redirect(303, '/login?next=/innstillinger');
@@ -104,10 +112,28 @@ export const actions: Actions = {
       uploads.push({ field, file, oldPath: oldPath ?? null, storageKey: `${randomUUID()}.${extension}` });
     }
 
-    await Promise.all(uploads.map(async (item) => saveUpload(item.storageKey, new Uint8Array(await item.file.arrayBuffer()))));
-    const imageValues = Object.fromEntries(uploads.map((item) => [item.field, item.storageKey]));
-    await db.update(profiles).set({ bio: bio || null, ...imageValues }).where(eq(profiles.userId, locals.user.id));
-    await Promise.allSettled(uploads.flatMap((item) => item.oldPath ? [removeUpload(item.oldPath)] : []));
+    const savedKeys: string[] = [];
+    try {
+      for (const item of uploads) {
+        await saveUpload(item.storageKey, new Uint8Array(await item.file.arrayBuffer()));
+        savedKeys.push(item.storageKey);
+      }
+      const imageValues = Object.fromEntries(uploads.map((item) => [item.field, item.storageKey]));
+      await db.update(profiles).set({ bio: bio || null, ...imageValues }).where(eq(profiles.userId, locals.user.id));
+    } catch (error) {
+      const cleanupFailures = await cleanupUploads(savedKeys, 'profile_upload_rollback_failed');
+      console.error(JSON.stringify({
+        event: 'profile_update_failed',
+        cleanupFailures,
+        error: error instanceof Error ? error.message : 'unknown'
+      }));
+      return fail(503, { profileError: 'Profilen kunne ikke lagres akkurat nå. Prøv igjen.' });
+    }
+
+    await cleanupUploads(
+      uploads.flatMap((item) => item.oldPath ? [item.oldPath] : []),
+      'profile_old_media_cleanup_failed'
+    );
     return { profileSaved: true };
   },
 
@@ -224,7 +250,7 @@ export const actions: Actions = {
     const files = [...media.map((item) => item.storageKey), profile?.avatarPath, profile?.coverPath].filter((value): value is string => !!value);
 
     await db.delete(users).where(eq(users.id, locals.user.id));
-    await Promise.allSettled(files.map((storageKey) => removeUpload(storageKey)));
+    await cleanupUploads(files, 'account_media_cleanup_failed');
     cookies.delete(SESSION_COOKIE, { path: '/' });
     redirect(303, '/login?deleted=1');
   }

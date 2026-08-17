@@ -2,7 +2,7 @@
   import { Bell, Clock3, Home, PlusSquare, Search, Settings, ShieldCheck, UserRound } from '@lucide/svelte';
   import { page } from '$app/state';
   let { children, user } = $props();
-  const items = [
+  const items = $derived([
     { href: '/', label: 'Hjem', icon: Home },
     { href: '/sok', label: 'Søk', icon: Search },
     { href: '/historikk', label: 'Historikk', icon: Clock3 },
@@ -11,8 +11,8 @@
     { href: '/profil', label: 'Profil', icon: UserRound },
     { href: '/innstillinger', label: 'Innstillinger', icon: Settings },
     ...(user?.role === 'admin' ? [{ href: '/admin', label: 'Admin', icon: ShieldCheck }] : [])
-  ];
-  const mobileItems = items.filter((item) => item.href !== '/historikk');
+  ]);
+  const mobileItems = $derived(items.filter((item) => item.href !== '/historikk'));
   const active = (href: string) => href === '/' ? page.url.pathname === '/' : href.startsWith('/?') ? false : page.url.pathname.startsWith(href);
 </script>
 

@@ -1,7 +1,8 @@
 <script lang="ts">
   import { ArrowLeft, ShieldCheck } from '@lucide/svelte';
+  import { untrack } from 'svelte';
   let { data, form } = $props();
-  let mode = $state<'login' | 'register'>(data.registerMode ? 'register' : 'login');
+  let mode = $state<'login' | 'register'>(untrack(() => data.registerMode ? 'register' : 'login'));
   $effect(() => { if (form?.mode === 'login' || form?.mode === 'register') mode = form.mode; });
 </script>
 <svelte:head><title>{mode === 'login' ? 'Logg inn' : 'Opprett konto'} – Samvio</title></svelte:head>

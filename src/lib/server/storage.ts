@@ -22,8 +22,18 @@ export async function uploadSize(storageKey: string) {
   return (await stat(safePath(storageKey))).size;
 }
 
+export async function removeUploadChecked(storageKey: string) {
+  try {
+    await unlink(safePath(storageKey));
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+  }
+}
+
+// Keep best-effort cleanup for callers where a stale file is safer than masking
+// the primary operation. Critical cleanup paths can use removeUploadChecked.
 export async function removeUpload(storageKey: string) {
-  await unlink(safePath(storageKey)).catch(() => undefined);
+  await removeUploadChecked(storageKey).catch(() => undefined);
 }
 
 export function uploadDirectory() {
