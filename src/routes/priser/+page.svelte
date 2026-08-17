@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { invalidateAll } from '$app/navigation';
   import { ShieldCheck } from '@lucide/svelte';
   import { plans } from '$lib/plans';
   let { data, form } = $props();
@@ -8,7 +10,20 @@
   const formatDate = (value: Date | string | null) => value
     ? new Intl.DateTimeFormat('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value))
     : null;
-  const purchaseBlocked = data.currentPlan !== 'free' || ['trialing', 'active', 'past_due'].includes(data.subscriptionStatus ?? '');
+  let purchaseBlocked = $derived(data.currentPlan !== 'free' || ['trialing', 'active', 'past_due'].includes(data.subscriptionStatus ?? ''));
+
+  onMount(() => {
+    let attempts = 0;
+    const interval = window.setInterval(async () => {
+      if (data.paymentStatus !== 'PENDING' || attempts >= 10) {
+        window.clearInterval(interval);
+        return;
+      }
+      attempts += 1;
+      await invalidateAll();
+    }, 2000);
+    return () => window.clearInterval(interval);
+  });
 </script>
 <svelte:head><title>Priser – Samvio</title><meta name="description" content="En rettferdig prismodell uten annonser eller salg av persondata." /></svelte:head>
 <main class="pricing-page">
