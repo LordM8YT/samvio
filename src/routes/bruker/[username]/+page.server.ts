@@ -48,7 +48,7 @@ export const actions: Actions = {
     const [block] = await db.select({ blockerId: userBlocks.blockerId }).from(userBlocks).where(or(and(eq(userBlocks.blockerId, locals.user.id), eq(userBlocks.blockedId, target.id)), and(eq(userBlocks.blockerId, target.id), eq(userBlocks.blockedId, locals.user.id)))).limit(1);
     if (block) return fail(403, { followError: 'Denne profilen kan ikke følges.' });
     const [existing] = await db.select({ status: follows.status }).from(follows)
-      .where(and(eq(follows.followerId, locals.user.id), inArray(follows.followedId, [target.id]))).limit(1);
+      .where(and(eq(follows.followerId, locals.user.id), eq(follows.followedId, target.id))).limit(1);
     if (existing?.status === 'blocked') return fail(403, { followError: 'Denne profilen kan ikke følges.' });
     const status = target.profileVisibility === 'public' ? 'accepted' : 'pending';
     await db.insert(follows).values({ followerId: locals.user.id, followedId: target.id, status })
