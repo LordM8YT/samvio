@@ -34,6 +34,7 @@ export const actions: Actions = {
     try {
       const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
       if (!user?.passwordHash || !(await compare(parsed.data.password, user.passwordHash))) return fail(400, { mode: 'login', message: 'Feil e-post eller passord.' });
+      if (user.accountStatus !== 'active') return fail(403, { mode: 'login', message: 'Denne kontoen kan ikke logge inn akkurat nå.' });
       const token = await createSession(user.id); cookies.set(SESSION_COOKIE, token, sessionCookieOptions); redirect(303, nextPath(url));
     } catch (error) { if (isRedirect(error)) throw error; return fail(503, { mode: 'login', message: 'Databasen er ikke tilgjengelig akkurat nå.' }); }
   },
