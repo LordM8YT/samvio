@@ -34,6 +34,8 @@ const supportedEvents = new Set([
   'recurring.charge-creation-failed.v1'
 ]);
 
+const MAX_WEBHOOK_AGE_MS = 10 * 60 * 1000;
+
 function safeEqual(left: string, right: string) {
   const a = Buffer.from(left);
   const b = Buffer.from(right);
@@ -47,6 +49,9 @@ function verifyWebhook(request: Request, url: URL, rawBody: Buffer) {
   const authorization = request.headers.get('authorization');
   const host = request.headers.get('host');
   if (!secret || !date || !contentHash || !authorization || !host) return false;
+
+  const sentAt = Date.parse(date);
+  if (!Number.isFinite(sentAt) || Math.abs(Date.now() - sentAt) > MAX_WEBHOOK_AGE_MS) return false;
 
   const expectedContentHash = createHash('sha256').update(rawBody).digest('base64');
   if (!safeEqual(contentHash, expectedContentHash)) return false;
