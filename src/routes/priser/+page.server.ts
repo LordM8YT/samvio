@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { error, fail, redirect } from '@sveltejs/kit';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { plans, type PlanCode } from '$lib/plans';
 import { db } from '$lib/server/db';
@@ -13,7 +13,11 @@ const purchasable = plans.filter((plan) => plan.purchaseReady && plan.monthlyPri
 
 function oneMonthFrom(date: Date) {
   const result = new Date(date);
-  result.setMonth(result.getMonth() + 1);
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + 1);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
   return result;
 }
 
@@ -28,7 +32,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
       paymentStatus = agreement.status ?? 'PENDING';
       if (agreement.status === 'ACTIVE' && subscription.status !== 'active') {
         // With an initial charge, Vipps only activates the agreement after the upfront payment succeeds.
-        const currentPeriodStart = new Date();
+        const currentPeriodStart = agreement.start ? new Date(agreement.start) : new Date();
         await db.update(subscriptions).set({
           status: 'active',
           currentPeriodStart,
@@ -45,25 +49,39 @@ export const load: PageServerLoad = async ({ locals, url }) => {
   let storageLimitBytes = 1024 * 1024 * 1024;
   let currentPeriodEnd: Date | null = null;
   let cancelAtPeriodEnd = false;
+  let subscriptionStatus: string | null = null;
   if (locals.user) {
-    const [entitlements, usage] = await Promise.all([
+    const [entitlements, usage, latestSubscriptions] = await Promise.all([
       getUserEntitlements(locals.user.id),
-      getUserStorageUsage(locals.user.id)
+      getUserStorageUsage(locals.user.id),
+      db.select({
+        status: subscriptions.status,
+        currentPeriodEnd: subscriptions.currentPeriodEnd,
+        cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd
+      }).from(subscriptions)
+        .where(eq(subscriptions.userId, locals.user.id))
+        .orderBy(desc(subscriptions.createdAt))
+        .limit(1)
     ]);
     currentPlan = entitlements.planCode;
     storageUsedBytes = usage;
     storageLimitBytes = entitlements.storageLimitBytes;
+    const latestSubscription = latestSubscriptions[0];
+    subscriptionStatus = latestSubscription?.status ?? null;
     if (entitlements.subscriptionId) {
       const [subscription] = await db.select({ currentPeriodEnd: subscriptions.currentPeriodEnd, cancelAtPeriodEnd: subscriptions.cancelAtPeriodEnd })
         .from(subscriptions).where(eq(subscriptions.id, entitlements.subscriptionId)).limit(1);
       currentPeriodEnd = subscription?.currentPeriodEnd ?? null;
       cancelAtPeriodEnd = subscription?.cancelAtPeriodEnd ?? false;
+    } else if (latestSubscription) {
+      currentPeriodEnd = latestSubscription.currentPeriodEnd;
+      cancelAtPeriodEnd = latestSubscription.cancelAtPeriodEnd;
     }
   }
 
   return {
     vippsEnabled: isVippsEnabled(), loggedIn: Boolean(locals.user), paymentStatus,
-    currentPlan, storageUsedBytes, storageLimitBytes, currentPeriodEnd, cancelAtPeriodEnd
+    currentPlan, storageUsedBytes, storageLimitBytes, currentPeriodEnd, cancelAtPeriodEnd, subscriptionStatus
   };
 };
 
@@ -71,6 +89,21 @@ export const actions: Actions = {
   subscribe: async ({ request, locals }) => {
     if (!locals.user) redirect(303, `/login?next=${encodeURIComponent('/priser')}`);
     if (!isVippsEnabled()) return fail(503, { paymentError: 'Vipps åpnes snart.' });
+
+    const [openSubscription] = await db.select({ status: subscriptions.status }).from(subscriptions)
+      .where(and(
+        eq(subscriptions.userId, locals.user.id),
+        inArray(subscriptions.status, ['trialing', 'active', 'past_due'])
+      ))
+      .limit(1);
+    if (openSubscription) {
+      const message = openSubscription.status === 'trialing'
+        ? 'Du har allerede en Vipps-avtale som venter på bekreftelse.'
+        : openSubscription.status === 'past_due'
+          ? 'Du har allerede et abonnement med en betaling som krever oppfølging.'
+          : 'Du har allerede et aktivt betalt abonnement.';
+      return fail(409, { paymentError: message });
+    }
 
     const existing = await getUserEntitlements(locals.user.id);
     if (existing.planCode !== 'free') return fail(409, { paymentError: 'Du har allerede et aktivt betalt abonnement.' });
