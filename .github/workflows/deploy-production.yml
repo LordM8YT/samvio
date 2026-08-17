@@ -50,4 +50,4 @@ jobs:
             -o BatchMode=yes \
             -o ConnectTimeout=15 \
             "$DEPLOY_USER@$DEPLOY_HOST" \
-            'cd /opt/samvio/app && ./scripts/deploy-production.sh main && node --env-file=/etc/samvio/samvio.env ./scripts/cleanup-retention.mjs --dry-run && ./scripts/activate-vipps-payments.sh'
+            'cd /opt/samvio/app && ./scripts/deploy-production.sh main && node --env-file=/etc/samvio/samvio.env ./scripts/cleanup-retention.mjs --dry-run && /usr/bin/bash ./scripts/activate-vipps-payments.sh'
