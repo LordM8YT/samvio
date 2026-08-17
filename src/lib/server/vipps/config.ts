@@ -49,5 +49,12 @@ export function getVippsConfig(): VippsConfig {
   const publicUrl = new URL(config.publicUrl);
   if (publicUrl.protocol !== 'https:' && publicUrl.hostname !== 'localhost') throw new Error('SAMVIO_PUBLIC_URL må bruke HTTPS.');
   config.publicUrl = publicUrl.origin;
+  config.apiBaseUrl = config.apiBaseUrl.replace(/\/$/, '');
   return config as VippsConfig;
+}
+
+export function getVippsWebhookSecret() {
+  const secret = env.VIPPS_WEBHOOK_SECRET;
+  if (!secret) throw new Error('VIPPS_WEBHOOK_SECRET mangler. Registrer Recurring-webhook før betaling aktiveres.');
+  return secret;
 }
