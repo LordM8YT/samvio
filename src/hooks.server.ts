@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getSessionUser, SESSION_COOKIE } from '$lib/server/auth';
+import { ensureVippsRuntime } from '$lib/server/vipps/bootstrap';
 
 export const handle: Handle = async ({ event, resolve }) => {
   event.locals.requestId = randomUUID();
+  await ensureVippsRuntime();
+
   const token = event.cookies.get(SESSION_COOKIE);
   event.locals.user = null;
 
