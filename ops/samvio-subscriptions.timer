@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Samvio subscription renewal worker every six hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:20:00
+RandomizedDelaySec=10m
+Persistent=true
+Unit=samvio-subscriptions.service
+
+[Install]
+WantedBy=timers.target
