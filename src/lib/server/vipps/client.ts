@@ -6,6 +6,7 @@ export type VippsAgreement = {
   vippsConfirmationUrl?: string;
   chargeId?: string;
   status?: string;
+  start?: string;
 };
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
