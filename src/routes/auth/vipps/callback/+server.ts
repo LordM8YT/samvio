@@ -46,9 +46,20 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     const tokens = await exchangeVippsCode(code, verifier, nonce);
     const info = await getVippsUserInfo(tokens.accessToken);
     if (tokens.subject !== info.sub) throw new Error('Vipps subject samsvarer ikke.');
+
     const email = info.email?.trim().toLowerCase();
     if (!email || info.email_verified === false) throw new Error('Vipps-kontoen må dele en verifisert e-postadresse.');
-    const [linked] = await db.select({ userId: verifications.userId }).from(verifications).where(and(eq(verifications.provider, 'vipps'), eq(verifications.providerSubject, info.sub), eq(verifications.status, 'verified'))).limit(1);
+
+    const age = ageFromBirthdate(info.birthdate);
+    if (age !== null && age < 13) throw new Error('Samvio alpha er foreløpig bare tilgjengelig fra 13 år.');
+    const verifiedName = info.name?.trim().slice(0, 120) || null;
+    const verifiedAgeBand = age === null ? null : age < 18 ? 'teen' : 'adult';
+
+    const [linked] = await db.select({ id: verifications.id, userId: verifications.userId })
+      .from(verifications)
+      .where(and(eq(verifications.provider, 'vipps'), eq(verifications.providerSubject, info.sub), eq(verifications.status, 'verified')))
+      .limit(1);
+
     let userId = linked?.userId;
     if (!userId) {
       const [existingUser] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
@@ -57,23 +68,44 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
         const [otherVipps] = await db.select({ subject: verifications.providerSubject }).from(verifications).where(and(eq(verifications.userId, userId), eq(verifications.provider, 'vipps'))).limit(1);
         if (otherVipps && otherVipps.subject !== info.sub) throw new Error('Kontoen er allerede koblet til en annen Vipps-bruker.');
       } else {
-        const age = ageFromBirthdate(info.birthdate);
-        if (age !== null && age < 13) throw new Error('Samvio alpha er foreløpig bare tilgjengelig fra 13 år.');
-        const ageBand = age === null || age < 18 ? 'teen' : 'adult';
+        const ageBand = verifiedAgeBand ?? 'teen';
         userId = randomUUID();
-        const realName = (info.name?.trim() || email.split('@')[0]).slice(0, 120);
+        const realName = (verifiedName || email.split('@')[0]).slice(0, 120);
         const username = await availableUsername(realName);
         const acquisition = readAcquisition(cookies);
         const [referrer] = acquisition.inviter ? await db.select({ userId: profiles.userId }).from(profiles).where(eq(profiles.username, acquisition.inviter)).limit(1) : [];
         await db.transaction(async (tx) => {
           await tx.insert(users).values({ id: userId!, email, passwordHash: null, accountStatus: 'active', acquisitionSource: acquisition.source, referredByUserId: referrer?.userId ?? null });
-          await tx.insert(profiles).values({ userId: userId!, realName, username, ageBand });
+          await tx.insert(profiles).values({ userId: userId!, realName, username, ageBand, isIdentityVerified: true });
           await tx.insert(userPreferences).values({ userId: userId!, hideCommercialContent: ageBand !== 'adult' });
         });
         await recordRegistration(acquisition.source).catch(() => undefined);
       }
-      await db.insert(verifications).values({ id: randomUUID(), userId, provider: 'vipps', providerSubject: info.sub, status: 'verified', birthDate: info.birthdate ?? null, assuranceLevel: 'vipps-login', identityVerifiedAt: new Date(), providerMetadata: { emailVerified: info.email_verified ?? null } });
+
+      await db.insert(verifications).values({
+        id: randomUUID(),
+        userId,
+        provider: 'vipps',
+        providerSubject: info.sub,
+        status: 'verified',
+        birthDate: info.birthdate ?? null,
+        assuranceLevel: 'vipps-login',
+        identityVerifiedAt: new Date(),
+        providerMetadata: { emailVerified: info.email_verified ?? null, verifiedName }
+      });
+    } else {
+      await db.update(verifications).set({
+        birthDate: info.birthdate ?? null,
+        assuranceLevel: 'vipps-login',
+        providerMetadata: { emailVerified: info.email_verified ?? null, verifiedName }
+      }).where(eq(verifications.id, linked.id));
     }
+
+    await db.update(profiles).set({
+      isIdentityVerified: true,
+      ...(verifiedAgeBand ? { ageBand: verifiedAgeBand } : {})
+    }).where(eq(profiles.userId, userId));
+
     const session = await createSession(userId);
     cookies.set(SESSION_COOKIE, session, sessionCookieOptions);
     redirect(303, next);
