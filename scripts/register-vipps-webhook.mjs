@@ -98,12 +98,29 @@ function hasAllEvents(webhook) {
   return recurringEvents.every((event) => events.has(event));
 }
 
+function setEnv(content, key, value) {
+  const line = `${key}=${JSON.stringify(String(value))}`;
+  const pattern = new RegExp(`^${key}=.*$`, 'm');
+  return pattern.test(content) ? content.replace(pattern, line) : `${content.replace(/\s*$/, '')}\n${line}\n`;
+}
+
+async function updateEnv(secret) {
+  if (!envFile) throw new Error('--write-env=<fil> er påkrevd. Secret skrives aldri til stdout.');
+  const original = await readFile(envFile, 'utf8');
+  let updated = original;
+  if (secret) updated = setEnv(updated, 'VIPPS_WEBHOOK_SECRET', secret);
+  if (enablePayments) updated = setEnv(updated, 'VIPPS_PAYMENTS_ENABLED', 'true');
+  if (updated !== original) await writeFile(envFile, updated, { mode: 0o600 });
+}
+
 const registered = await listWebhooks();
 const matches = (registered?.webhooks ?? []).filter((webhook) => webhook.url === callbackUrl);
 const existingComplete = matches.find(hasAllEvents);
 
 if (existingComplete && process.env.VIPPS_WEBHOOK_SECRET) {
+  await updateEnv(null);
   console.log(`Vipps webhook er allerede registrert for ${callbackUrl}.`);
+  if (enablePayments) console.log('VIPPS_PAYMENTS_ENABLED er satt til true.');
   process.exit(0);
 }
 
@@ -120,16 +137,12 @@ if (!envFile) {
   throw new Error('Webhook ble ikke beholdt fordi --write-env=<fil> mangler. Secret skrives aldri til stdout.');
 }
 
-const original = await readFile(envFile, 'utf8');
-function setEnv(content, key, value) {
-  const line = `${key}=${JSON.stringify(String(value))}`;
-  const pattern = new RegExp(`^${key}=.*$`, 'm');
-  return pattern.test(content) ? content.replace(pattern, line) : `${content.replace(/\s*$/, '')}\n${line}\n`;
+try {
+  await updateEnv(created.secret);
+} catch (error) {
+  await deleteWebhook(created.id).catch(() => undefined);
+  throw error;
 }
-
-let updated = setEnv(original, 'VIPPS_WEBHOOK_SECRET', created.secret);
-if (enablePayments) updated = setEnv(updated, 'VIPPS_PAYMENTS_ENABLED', 'true');
-await writeFile(envFile, updated, { mode: 0o600 });
 
 console.log(`Vipps Recurring webhook registrert: ${callbackUrl}`);
 console.log(`Webhook-id: ${created.id}`);
