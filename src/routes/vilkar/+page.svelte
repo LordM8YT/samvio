@@ -47,12 +47,13 @@
 
     <section>
       <h2>5. Levering</h2>
-      <p>Tilgang til betalte funksjoner leveres digitalt til Samvio-kontoen etter at betalingsavtalen er bekreftet. Normal levering er umiddelbar. Hvis aktivering ikke skjer innen rimelig tid, kan kjøper kontakte selger for retting eller heving etter reglene for digitale ytelser.</p>
+      <p>Tilgang til betalte funksjoner leveres digitalt til Samvio-kontoen etter at første betaling er bekreftet. Normal levering er umiddelbar. Hvis aktivering ikke skjer innen rimelig tid, kan kjøper kontakte selger for retting eller heving etter reglene for digitale ytelser.</p>
     </section>
 
     <section>
       <h2>6. Varighet, endring og oppsigelse</h2>
       <p>Abonnementet løper månedlig uten bindingstid og fornyes automatisk til det sies opp. Kjøper kan si opp fra kontoinnstillingene eller ved å kontakte selger. Oppsigelsen gjelder fra slutten av den allerede betalte perioden, og det foretas ingen nye trekk.</p>
+      <p>Forbrukere mottar minst hver sjette måned et varsel om at abonnementet løper, med informasjon om hvordan det kan sies opp.</p>
       <p>Bytte til en rimeligere plan gjelder senest fra neste betalingsperiode. Vesentlige pris- eller vilkårsendringer varsles i rimelig tid før de trer i kraft. Kjøper kan si opp før en endring begynner å gjelde.</p>
     </section>
 
