@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { Bell, Clock3, Home, PlusSquare, Search, Settings, ShieldCheck, UserRound } from '@lucide/svelte';
+  import { Bell, Clock3, Home, PlusSquare, Search, Settings, ShieldCheck, UserPlus, UserRound } from '@lucide/svelte';
   import { page } from '$app/state';
   let { children, user } = $props();
   const items = $derived([
     { href: '/', label: 'Hjem', icon: Home },
     { href: '/sok', label: 'Søk', icon: Search },
+    { href: '/inviter', label: 'Inviter', icon: UserPlus },
     { href: '/historikk', label: 'Historikk', icon: Clock3 },
     { href: '/?opprett=1', label: 'Opprett', icon: PlusSquare },
     { href: '/varsler', label: 'Varsler', icon: Bell },
