@@ -6,6 +6,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
   if (!locals.user) redirect(303, '/login?next=/inviter');
+  if (!locals.user.username) redirect(303, '/kom-i-gang');
 
   const invitedUsers = await db
     .select({ id: users.id })
@@ -14,7 +15,7 @@ export const load: PageServerLoad = async ({ locals }) => {
     .catch(() => []);
 
   return {
-    user: locals.user,
+    user: { ...locals.user, username: locals.user.username },
     invitedCount: invitedUsers.length
   };
 };
