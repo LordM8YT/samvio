@@ -141,11 +141,14 @@
 .view-profile { display: inline-block; margin-top: 16px; color: #315d49; font-size: 13px; font-weight: 700; }
 @media(max-width:560px){.image-fields,.visibility-setting{grid-template-columns:1fr}.settings-nav{top:calc(58px + env(safe-area-inset-top));overflow-x:auto}}
 
-.main-nav{background:linear-gradient(180deg,#fff 0%,#fffdfa 68%,#f2f7f4 100%)}
-.main-nav nav a{transition:background .16s ease,color .16s ease,transform .16s ease}
-.main-nav nav a:hover{background:#f6efe5;color:#8f4d2d;transform:translateX(2px)}
-.main-nav nav a.active{background:linear-gradient(105deg,#e8f1eb,#f7f0e4);color:#244839}
-.brand-mark{background:linear-gradient(145deg,#315d49,#244839);box-shadow:0 5px 14px #315d4933}
-.mobile-header{background:#fffdfaf2;backdrop-filter:blur(14px)}
-.mobile-nav{background:#fffdfaf2;backdrop-filter:blur(14px)}
-.mobile-nav a.active{background:linear-gradient(145deg,#e6f0ea,#f7ebdc);color:#315d49}
+.main-nav{width:224px;padding:31px 16px 20px;border-color:var(--line);background:var(--cream)}
+.main-nav .wordmark{margin-bottom:34px;padding:0 10px;color:var(--ink);font:500 25px/1 'Newsreader',serif;letter-spacing:-.5px}
+.main-nav nav{gap:4px}
+.main-nav nav a{min-height:44px;padding:0 12px;border-radius:12px;color:var(--muted);transition:background .16s ease,color .16s ease}
+.main-nav nav a:hover{background:#eeeae4;color:var(--ink);transform:none}
+.main-nav nav a.active{background:var(--pine-soft);color:var(--forest);font-weight:600}
+.mobile-header{border-color:var(--line);background:#f5f2edf2;backdrop-filter:blur(14px)}
+.mobile-header .wordmark{font-weight:500}
+.mobile-nav{height:calc(68px + max(10px,env(safe-area-inset-bottom)));border-color:var(--line);background:#f5f2edf5;backdrop-filter:blur(16px)}
+.mobile-nav a.active{background:transparent;color:var(--forest)}
+@media(max-width:1160px){.main-nav{width:74px;padding-left:10px;padding-right:10px}.main-nav .wordmark{justify-content:center;padding:0;font-size:0}.main-nav .wordmark:after{content:'S';width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:var(--forest);color:#fff;font:500 17px 'Newsreader',serif}}

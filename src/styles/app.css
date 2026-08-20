@@ -28,3 +28,31 @@ body{background:linear-gradient(135deg,#faf9f6 0%,#f7f4ec 55%,#f3f7f5 100%)}
 .select-button:hover,.search-form button:hover,.profile-actions a:hover{filter:brightness(1.08)}
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #e5b84c66;outline-offset:3px}
 @media(max-width:700px){.post-card{border-left:0;border-right:0;border-radius:0;box-shadow:none}.post-card:hover{transform:none}.feed-label:before{width:4px}}
+
+/* Samvio 2026 visual foundation: editorial warmth, quiet hierarchy and fewer decorative effects. */
+:root{--forest:#1e3a2f;--forest-dark:#152b23;--cream:#f5f2ed;--paper:#fff;--line:#ddd9d3;--ink:#1a1814;--muted:#6b6560;--pine-soft:#e8ede9}
+body{color:var(--ink);background:var(--cream)}
+.samvio-shell{background:var(--cream)}
+.feed-column{padding-top:26px}
+.feed-label{margin-top:0;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:20px 2px 16px}
+.feed-label:before{display:none}
+.feed-label h1{font:500 24px/1.1 'Newsreader',serif}
+.feed-label span,.feed-label p{color:var(--muted)}
+.quick-share{border-color:var(--line);border-radius:20px;background:var(--paper);box-shadow:none}
+.quick-share button{border-color:#e4e0da;background:#faf9f7}
+.quick-share>svg{color:var(--forest)}
+.post-list{gap:16px}
+.post-card{border:1px solid var(--line);border-radius:22px;background:var(--paper);box-shadow:0 2px 12px #1a181408;transition:border-color .18s ease,box-shadow .18s ease}
+.post-card:before{display:none}
+.post-card:hover{transform:none;border-color:#c9c3bb;box-shadow:0 8px 28px #1a18140d}
+.post-avatar,.profile-avatar{background:var(--pine-soft);color:var(--forest-dark)}
+.post-card>img,.post-card>a>img{max-height:720px}
+.safe-note{border:1px solid #d9e2dc;background:var(--pine-soft)}
+.feed-end{margin-top:18px;padding:24px 20px;border:0;border-radius:20px;background:var(--pine-soft);color:var(--muted)}
+.feed-end strong{color:var(--forest);font-size:13px}
+.feed-end a{color:var(--forest)}
+.empty-state,.history-empty,.section-empty{background:var(--paper)}
+.empty-icon{border-color:var(--forest);background:var(--pine-soft);color:var(--forest)}
+.section-card{border-color:var(--line);border-radius:20px;box-shadow:none}
+.select-button,.search-form button,.profile-actions a{background:var(--forest)}
+@media(max-width:700px){body{background:var(--cream)}.feed-column{padding-top:0}.quick-share{border-radius:0;background:var(--paper)}.feed-label{padding:20px 15px 14px}.post-list{gap:14px;padding:14px}.post-card{border:1px solid var(--line);border-radius:20px;box-shadow:none}.feed-end{margin:14px;border-radius:18px}.post-card:hover{border-color:var(--line);box-shadow:none}}
